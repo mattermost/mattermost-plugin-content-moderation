@@ -19,8 +19,8 @@
         "bundle_path": "webapp/dist/main.js"
     },
     "settings_schema": {
-        "settings": []
+        "settings": [],
         "header": "Configure the Content Moderator plugin.",
-        "footer": "* To report an issue, make a suggestion, or contribute, [check the repository](https://github.com/mattermost/mattermost-plugin-content-moderator).",
+        "footer": "* To report an issue, make a suggestion, or contribute, [check the repository](https://github.com/mattermost/mattermost-plugin-content-moderator)."
     }
 }
