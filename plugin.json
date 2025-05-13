@@ -53,6 +53,7 @@
                 "key": "apiKey",
                 "display_name": "API Key",
                 "type": "text",
+                "secret": true,
                 "help_text": "Your moderation API key.",
                 "placeholder": "Enter your API key here"
             },
