@@ -1,4 +1,4 @@
-module github.com/mattermost/mattermost-plugin-content-moderator
+module github.com/mattermost/mattermost-plugin-content-moderation
 
 go 1.22.0
 

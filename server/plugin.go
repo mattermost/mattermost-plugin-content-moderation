@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-content-moderator/server/moderation"
-	"github.com/mattermost/mattermost-plugin-content-moderator/server/moderation/azure"
+	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
+	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation/azure"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/pkg/errors"

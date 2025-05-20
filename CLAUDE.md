@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **IMPORTANT**: This CLAUDE.md file MUST be kept up to date whenever code changes are made, with NO EXCEPTIONS. Any changes to the codebase should be reflected in this document.
 
 ## Project Context
-This repository contains a Mattermost Content Moderator plugin that provides automatic content moderation using Azure AI Content Safety APIs. Key features:
+This repository contains a Mattermost Content Moderation plugin that provides automatic content moderation using Azure AI Content Safety APIs. Key features:
 
 - Text content moderation (hate speech, sexual, violence, self-harm)
 - Configurable single moderation threshold
