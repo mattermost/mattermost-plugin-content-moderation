@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-content-moderator/server/moderation"
 	"github.com/mattermost/mattermost-plugin-content-moderator/server/moderation/azure"
 	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/pkg/errors"
 )
 
@@ -22,6 +24,13 @@ type Plugin struct {
 }
 
 func (p *Plugin) OnActivate() error {
+	// Ensure we have an enterprise license or a development environment
+	if !pluginapi.IsEnterpriseLicensedOrDevelopment(
+		p.API.GetConfig(),
+		p.API.GetLicense(),
+	) {
+		return fmt.Errorf("this plugin requires an Enterprise license")
+	}
 	return p.initialize()
 }
 
