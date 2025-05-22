@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -14,8 +15,16 @@ import (
 // The current Azure rate limit is 1000 posts per minute.
 // Using half of that to give us some wiggle room:
 // https://learn.microsoft.com/en-us/azure/ai-services/content-safety/faq
-const postsPerMinuteLimit = 500
-const processingInterval = 1 / postsPerMinuteLimit * time.Minute
+const (
+	postsPerMinuteLimit = 500
+	processingInterval  = 1 / postsPerMinuteLimit * time.Minute
+)
+
+// Message templates for moderation notifications
+const (
+	channelNotificationTemplate = "_A post with potentially offensive content was flagged and removed._"
+	dmNotificationTemplate      = "_Your post with the following content was flagged and removed:_\n\n%s"
+)
 
 var (
 	ErrModerationRejection   = errors.New("potentially inappropriate content detected")
@@ -23,6 +32,7 @@ var (
 )
 
 type PostProcessor struct {
+	botID     string
 	moderator moderation.Moderator
 
 	stopChan chan bool
@@ -36,6 +46,7 @@ type PostProcessor struct {
 }
 
 func newPostProcessor(
+	botID string,
 	moderator moderation.Moderator,
 	thresholdValue int,
 	targetAll bool,
@@ -45,6 +56,7 @@ func newPostProcessor(
 		return nil, ErrModerationUnavailable
 	}
 	return &PostProcessor{
+		botID:          botID,
 		moderator:      moderator,
 		stopChan:       make(chan bool, 1),
 		thresholdValue: thresholdValue,
@@ -81,6 +93,10 @@ func (p *PostProcessor) start(api plugin.API) {
 
 			if err := api.DeletePost(post.Id); err != nil {
 				api.LogError("Failed to delete post flagged by content moderation", "post_id", post.Id, "err", err)
+			}
+
+			if err := p.reportModerationEvent(api, post); err != nil {
+				api.LogError("Failed report content moderation event", "post_id", post.Id, "err", err)
 			}
 		}
 	}()
@@ -137,6 +153,9 @@ func (p *PostProcessor) moderatePost(api plugin.API, post *model.Post) error {
 }
 
 func (p *PostProcessor) shouldModerateUser(userID string) bool {
+	if userID == p.botID {
+		return false
+	}
 	if p.targetAll {
 		return true
 	}
@@ -164,4 +183,30 @@ func (p *PostProcessor) logFlaggedResult(api plugin.API, userID string, result m
 	}
 
 	api.LogInfo("Content was flagged by moderation", keyPairs...)
+}
+
+func (p *PostProcessor) reportModerationEvent(api plugin.API, post *model.Post) error {
+	if _, err := api.CreatePost(&model.Post{
+		UserId:    p.botID,
+		ChannelId: post.ChannelId,
+		RootId:    post.RootId,
+		Message:   channelNotificationTemplate,
+	}); err != nil {
+		return errors.Wrap(err, "failed to post channel notification")
+	}
+
+	dmChannel, err := api.GetDirectChannel(p.botID, post.UserId)
+	if err != nil {
+		return errors.Wrap(err, "failed to create DM channel")
+	}
+
+	if _, err := api.CreatePost(&model.Post{
+		UserId:    p.botID,
+		ChannelId: dmChannel.Id,
+		Message:   fmt.Sprintf(dmNotificationTemplate, post.Message),
+	}); err != nil {
+		return errors.Wrap(err, "failed to send DM notification")
+	}
+
+	return nil
 }
