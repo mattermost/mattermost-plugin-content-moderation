@@ -12,11 +12,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+// The current Azure rate limit is 1000 posts per minute.
+// Using half of that to give us some wiggle room:
+// https://learn.microsoft.com/en-us/azure/ai-services/content-safety/faq
 const (
 	postsPerMinuteLimit = 500
 	processingInterval  = 1 / postsPerMinuteLimit * time.Minute
+)
 
-	// Message templates for moderation notifications
+// Message templates for moderation notifications
+const (
 	channelNotificationTemplate = "_A post with potentially offensive content was flagged and removed._"
 	dmNotificationTemplate      = "_Your post with the following content was flagged and removed:_\n\n%s"
 )
