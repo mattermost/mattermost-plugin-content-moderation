@@ -11,6 +11,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// The current Azure rate limit is 1000 posts per minute.
+// Using half of that to give us some wiggle room:
+// https://learn.microsoft.com/en-us/azure/ai-services/content-safety/faq
 const postsPerMinuteLimit = 500
 const processingInterval = 1 / postsPerMinuteLimit * time.Minute
 
