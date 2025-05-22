@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/mattermost/mattermost-plugin-content-moderator/server/moderation"
+	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
 	"github.com/pkg/errors"
 )
 

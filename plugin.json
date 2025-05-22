@@ -1,9 +1,9 @@
 {
-    "id": "com.mattermost.content-moderator",
-    "name": "Content Moderator",
+    "id": "com.mattermost.content-moderation",
+    "name": "Content Moderation",
     "description": "This plugin provides content moderation capabilities using Azure AI Content Safety APIs.",
-    "homepage_url": "https://github.com/mattermost/mattermost-plugin-content-moderator",
-    "support_url": "https://github.com/mattermost/mattermost-plugin-content-moderator/issues",
+    "homepage_url": "https://github.com/mattermost/mattermost-plugin-content-moderation",
+    "support_url": "https://github.com/mattermost/mattermost-plugin-content-moderation/issues",
     "icon_path": "assets/content-moderator-icon.svg",
     "min_server_version": "6.2.1",
     "server": {
@@ -19,8 +19,8 @@
         "bundle_path": "webapp/dist/main.js"
     },
     "settings_schema": {
-        "header": "Configure the Content Moderator plugin.",
-        "footer": "* To report an issue, make a suggestion, or contribute, [check the repository](https://github.com/mattermost/mattermost-plugin-content-moderator).",
+        "header": "Configure the Content Moderation plugin.",
+        "footer": "* To report an issue, make a suggestion, or contribute, [check the repository](https://github.com/mattermost/mattermost-plugin-content-moderation).",
         "settings": [
             {
                 "key": "enabled",

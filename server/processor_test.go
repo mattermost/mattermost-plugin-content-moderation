@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/mattermost/mattermost-plugin-content-moderator/server/moderation"
+	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/pkg/errors"
