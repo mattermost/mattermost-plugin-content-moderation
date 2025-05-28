@@ -11,7 +11,7 @@ const UsersInput = UsersInputComponent as any;
 
 interface UserSettingsProps {
     id: string;
-    value: string;
+    value?: string;
     onChange: (id: string, value: string) => void;
 }
 
@@ -37,7 +37,7 @@ class UserSettings extends React.Component<UserSettingsProps, UserSettingsState>
         }
     }
 
-    initializeUsers = (value: string) => {
+    initializeUsers = (value?: string) => {
         if (value) {
             const userIds = value.split(',').filter((id) => id.trim());
             if (userIds.length > 0) {
@@ -62,7 +62,7 @@ class UserSettings extends React.Component<UserSettingsProps, UserSettingsState>
     render() {
         return (
             <UsersInput
-                placeholder='Search for users to moderate'
+                placeholder='Search for users to exclude from moderation'
                 users={this.state.users}
                 onChange={this.handleChange}
                 actions={{

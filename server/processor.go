@@ -37,9 +37,9 @@ type PostProcessor struct {
 
 	stopChan chan bool
 
-	thresholdValue int
-	targetAll      bool
-	targetUsers    map[string]struct{}
+	thresholdValue   int
+	excludedUsers    map[string]struct{}
+	excludedChannels map[string]struct{}
 
 	postsToProcess []*model.Post
 	processLock    sync.Mutex
@@ -49,19 +49,19 @@ func newPostProcessor(
 	botID string,
 	moderator moderation.Moderator,
 	thresholdValue int,
-	targetAll bool,
-	targetUsers map[string]struct{},
+	excludedUsers map[string]struct{},
+	excludedChannels map[string]struct{},
 ) (*PostProcessor, error) {
 	if moderator == nil {
 		return nil, ErrModerationUnavailable
 	}
 	return &PostProcessor{
-		botID:          botID,
-		moderator:      moderator,
-		stopChan:       make(chan bool, 1),
-		thresholdValue: thresholdValue,
-		targetAll:      targetAll,
-		targetUsers:    targetUsers,
+		botID:            botID,
+		moderator:        moderator,
+		stopChan:         make(chan bool, 1),
+		thresholdValue:   thresholdValue,
+		excludedUsers:    excludedUsers,
+		excludedChannels: excludedChannels,
 	}, nil
 }
 
@@ -132,6 +132,10 @@ func (p *PostProcessor) moderatePost(api plugin.API, post *model.Post) error {
 		return nil
 	}
 
+	if !p.shouldModerateChannel(post.ChannelId) {
+		return nil
+	}
+
 	if post.Message == "" {
 		return nil
 	}
@@ -156,11 +160,19 @@ func (p *PostProcessor) shouldModerateUser(userID string) bool {
 	if userID == p.botID {
 		return false
 	}
-	if p.targetAll {
+	if len(p.excludedUsers) == 0 {
 		return true
 	}
-	_, exists := p.targetUsers[userID]
-	return exists
+	_, excluded := p.excludedUsers[userID]
+	return !excluded
+}
+
+func (p *PostProcessor) shouldModerateChannel(channelID string) bool {
+	if len(p.excludedChannels) == 0 {
+		return true
+	}
+	_, excluded := p.excludedChannels[channelID]
+	return !excluded
 }
 
 func (p *PostProcessor) resultSeverityAboveThreshold(result moderation.Result) bool {

@@ -2,7 +2,6 @@
 // See LICENSE.txt for license information.
 
 import debounce from 'lodash/debounce';
-import PropTypes from 'prop-types';
 import React, {useEffect} from 'react';
 import type {MultiValue, StylesConfig} from 'react-select';
 import AsyncSelect from 'react-select/async';
@@ -62,14 +61,14 @@ export default function UsersInput(props: UsersInputProps) {
 
                 if (firstName && lastName) {
                     return (
-                        <React.Fragment>
+                        <React.Fragment key={option.id}>
                             {`@${option.username} (${firstName} ${lastName})`}
                         </React.Fragment>
                     );
                 }
 
                 return (
-                    <React.Fragment>
+                    <React.Fragment key={option.id}>
                         {`@${option.username}`}
                     </React.Fragment>
                 );
@@ -133,17 +132,6 @@ export default function UsersInput(props: UsersInputProps) {
         />
     );
 }
-
-// PropTypes can still be defined for the component
-UsersInput.propTypes = {
-    placeholder: PropTypes.string,
-    users: PropTypes.array,
-    onChange: PropTypes.func,
-    actions: PropTypes.shape({
-        searchProfiles: PropTypes.func.isRequired,
-        getMissingProfilesByIds: PropTypes.func.isRequired,
-    }).isRequired,
-};
 
 const customStyles: StylesConfig<any, true> = {
     container: (baseStyles) => ({
