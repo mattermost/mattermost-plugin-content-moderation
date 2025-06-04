@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {Client4, ClientError} from '@mattermost/client';
+import type {Channel} from '@mattermost/types/channels';
 
 import manifest from './manifest';
 
@@ -14,7 +15,7 @@ class APIClient {
         return this.doGet(url);
     };
 
-    searchChannels = (term: string) => {
+    searchChannels = (term: string): Promise<Channel[]> => {
         const url = `${this.url}/channels/search?prefix=${encodeURIComponent(term)}`;
         return this.doGet(url);
     };

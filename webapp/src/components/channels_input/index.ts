@@ -33,27 +33,25 @@ function mapStateToProps(state: GlobalState, ownProps: {channels: Channel[] | Ar
 
 function mapDispatchToProps(dispatch: Dispatch) {
     return {
-        actions: bindActionCreators({
+        actions: {
             searchChannels,
-            getMissingChannelsByIds,
-        }, dispatch),
+            getMissingChannelsByIds: bindActionCreators(getMissingChannelsByIds, dispatch),
+        },
     };
 }
 
-// Search channels function - returns a thunk
-const searchChannels = (term: string) => {
-    return async () => {
-        try {
-            if (!term) {
-                return [];
-            }
-            return Client.searchChannels(term);
-        } catch (error) {
-            // eslint-disable-next-line no-console
-            console.log('Error searching channels:', error);
-            throw error;
+// Search channels function - returns a promise directly
+const searchChannels = async (term: string) => {
+    try {
+        if (!term) {
+            return [];
         }
-    };
+        return Client.searchChannels(term);
+    } catch (error) {
+        // eslint-disable-next-line no-console
+        console.log('Error searching channels:', error);
+        throw error;
+    }
 };
 
 // keep track of ongoing requests to ensure we don't try

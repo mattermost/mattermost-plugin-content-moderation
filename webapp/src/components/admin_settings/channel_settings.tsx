@@ -67,7 +67,6 @@ class ChannelSettings extends React.Component<ChannelSettingsProps, ChannelSetti
         }
         return (
             <ChannelsInputComponent
-                p={true}
                 placeholder='Search for channels to exclude from moderation'
                 channels={this.state.channels}
                 onChange={this.handleChange}
