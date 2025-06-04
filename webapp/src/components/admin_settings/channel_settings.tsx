@@ -22,19 +22,19 @@ class ChannelSettings extends React.Component<ChannelSettingsProps, ChannelSetti
     constructor(props: ChannelSettingsProps) {
         super(props);
 
-	this.state = {
-	    channels: [],
-	};
+        this.state = {
+            channels: [],
+        };
     }
 
     componentDidMount() {
-	this.initializeChannels(this.props.value || '');
+        this.initializeChannels(this.props.value || '');
     }
 
     componentDidUpdate(prevProps: ChannelSettingsProps) {
-	if (prevProps.value !== this.props.value) {
-	    this.initializeChannels(this.props.value || '');
-	}
+        if (prevProps.value !== this.props.value) {
+            this.initializeChannels(this.props.value || '');
+        }
     }
 
     initializeChannels = (value: string) => {
@@ -54,20 +54,21 @@ class ChannelSettings extends React.Component<ChannelSettingsProps, ChannelSetti
     };
 
     handleChange = (channels: Channel[]) => {
-	if (!channels || !this.props.onChange || !this.props.id) {
-	    return;
-	}
-	const channelIds = channels.map((channel) => channel?.id).filter(Boolean).join(',');
-	this.props.onChange(this.props.id, channelIds);
+        if (!channels || !this.props.onChange || !this.props.id) {
+            return;
+        }
+        const channelIds = channels.map((channel) => channel?.id).filter(Boolean).join(',');
+        this.props.onChange(this.props.id, channelIds);
     };
 
     render() {
-	if (!this.props.id) {
-	    return null;
-	}
+        if (!this.props.id) {
+            return null;
+        }
         return (
             <ChannelsInputComponent
-p                placeholder='Search for channels to exclude from moderation'
+                p={true}
+                placeholder='Search for channels to exclude from moderation'
                 channels={this.state.channels}
                 onChange={this.handleChange}
             />

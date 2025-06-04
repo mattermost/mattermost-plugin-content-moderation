@@ -5,9 +5,10 @@ import debounce from 'lodash/debounce';
 import React, {useEffect} from 'react';
 import type {MultiValue, StylesConfig} from 'react-select';
 import AsyncSelect from 'react-select/async';
-import type {ActionFunc} from 'mattermost-redux/types/actions';
 
 import type {Channel} from '@mattermost/types/channels';
+
+import type {ActionFunc} from 'mattermost-redux/types/actions';
 
 interface ChannelsInputProps {
     placeholder?: string;

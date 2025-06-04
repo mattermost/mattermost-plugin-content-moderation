@@ -389,7 +389,7 @@ func TestNewPostProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor, err := newPostProcessor(tt.botID, tt.moderator, tt.thresholdValue, tt.excludedUsers)
+			processor, err := newPostProcessor(tt.botID, tt.moderator, tt.thresholdValue, tt.excludedUsers, map[string]struct{}{})
 
 			if tt.wantErr {
 				assert.Error(t, err)
