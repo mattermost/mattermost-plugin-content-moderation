@@ -239,6 +239,51 @@ func TestShouldModerateUser(t *testing.T) {
 	}
 }
 
+func TestShouldModerateChannel(t *testing.T) {
+	tests := []struct {
+		name             string
+		excludedChannels map[string]struct{}
+		channelID        string
+		expected         bool
+	}{
+		{
+			name:             "Channel not excluded",
+			excludedChannels: map[string]struct{}{},
+			channelID:        "any_channel",
+			expected:         true,
+		},
+		{
+			name:             "Channel is excluded",
+			excludedChannels: map[string]struct{}{"channel1": {}, "channel2": {}},
+			channelID:        "channel1",
+			expected:         false,
+		},
+		{
+			name:             "Channel not in excluded list",
+			excludedChannels: map[string]struct{}{"channel1": {}, "channel2": {}},
+			channelID:        "channel3",
+			expected:         true,
+		},
+		{
+			name:             "Empty excluded list",
+			excludedChannels: map[string]struct{}{},
+			channelID:        "any_channel",
+			expected:         true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			processor := &PostProcessor{
+				excludedChannels: tt.excludedChannels,
+			}
+
+			result := processor.shouldModerateChannel(tt.channelID)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 // Only test the simple cases to avoid race conditions in the test
 func TestModeratePost(t *testing.T) {
 	t.Run("Skip moderation for excluded user", func(t *testing.T) {
@@ -251,6 +296,23 @@ func TestModeratePost(t *testing.T) {
 		}
 
 		post := &model.Post{UserId: "user1", Message: "Test message"}
+		err := processor.moderatePost(mockAPI, post)
+
+		assert.NoError(t, err)
+		mockModerator.AssertNotCalled(t, "ModerateText")
+	})
+
+	t.Run("Skip moderation for excluded channel", func(t *testing.T) {
+		mockAPI := &plugintest.API{}
+		mockModerator := &MockModerator{}
+
+		processor := &PostProcessor{
+			moderator:        mockModerator,
+			excludedUsers:    map[string]struct{}{},
+			excludedChannels: map[string]struct{}{"channel1": {}, "channel2": {}},
+		}
+
+		post := &model.Post{UserId: "user1", ChannelId: "channel1", Message: "Test message"}
 		err := processor.moderatePost(mockAPI, post)
 
 		assert.NoError(t, err)
@@ -344,52 +406,75 @@ func TestModeratePost(t *testing.T) {
 
 func TestNewPostProcessor(t *testing.T) {
 	tests := []struct {
-		name           string
-		botID          string
-		moderator      moderation.Moderator
-		thresholdValue int
-		excludedUsers  map[string]struct{}
-		wantErr        bool
-		expectedErr    error
+		name             string
+		botID            string
+		moderator        moderation.Moderator
+		thresholdValue   int
+		excludedUsers    map[string]struct{}
+		excludedChannels map[string]struct{}
+		wantErr          bool
+		expectedErr      error
 	}{
 		{
-			name:           "Valid moderator with thresholds",
-			botID:          "bot123",
-			moderator:      &MockModerator{},
-			thresholdValue: 75,
-			excludedUsers:  map[string]struct{}{"user1": {}},
-			wantErr:        false,
+			name:             "Valid moderator with thresholds",
+			botID:            "bot123",
+			moderator:        &MockModerator{},
+			thresholdValue:   75,
+			excludedUsers:    map[string]struct{}{"user1": {}},
+			excludedChannels: map[string]struct{}{"channel1": {}},
+			wantErr:          false,
 		},
 		{
-			name:           "Nil moderator",
-			botID:          "bot123",
-			moderator:      nil,
-			thresholdValue: 75,
-			excludedUsers:  map[string]struct{}{"user1": {}},
-			wantErr:        true,
-			expectedErr:    ErrModerationUnavailable,
+			name:             "Nil moderator",
+			botID:            "bot123",
+			moderator:        nil,
+			thresholdValue:   75,
+			excludedUsers:    map[string]struct{}{"user1": {}},
+			excludedChannels: map[string]struct{}{"channel1": {}},
+			wantErr:          true,
+			expectedErr:      ErrModerationUnavailable,
 		},
 		{
-			name:           "Zero threshold",
-			botID:          "bot123",
-			moderator:      &MockModerator{},
-			thresholdValue: 0,
-			excludedUsers:  map[string]struct{}{"user1": {}},
-			wantErr:        false,
+			name:             "Zero threshold",
+			botID:            "bot123",
+			moderator:        &MockModerator{},
+			thresholdValue:   0,
+			excludedUsers:    map[string]struct{}{"user1": {}},
+			excludedChannels: map[string]struct{}{"channel1": {}},
+			wantErr:          false,
 		},
 		{
-			name:           "No excluded users",
-			botID:          "bot123",
-			moderator:      &MockModerator{},
-			thresholdValue: 75,
-			excludedUsers:  map[string]struct{}{},
-			wantErr:        false,
+			name:             "No excluded users",
+			botID:            "bot123",
+			moderator:        &MockModerator{},
+			thresholdValue:   75,
+			excludedUsers:    map[string]struct{}{},
+			excludedChannels: map[string]struct{}{"channel1": {}},
+			wantErr:          false,
+		},
+		{
+			name:             "No excluded channels",
+			botID:            "bot123",
+			moderator:        &MockModerator{},
+			thresholdValue:   75,
+			excludedUsers:    map[string]struct{}{"user1": {}},
+			excludedChannels: map[string]struct{}{},
+			wantErr:          false,
+		},
+		{
+			name:             "No excluded users or channels",
+			botID:            "bot123",
+			moderator:        &MockModerator{},
+			thresholdValue:   75,
+			excludedUsers:    map[string]struct{}{},
+			excludedChannels: map[string]struct{}{},
+			wantErr:          false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor, err := newPostProcessor(tt.botID, tt.moderator, tt.thresholdValue, tt.excludedUsers, map[string]struct{}{})
+			processor, err := newPostProcessor(tt.botID, tt.moderator, tt.thresholdValue, tt.excludedUsers, tt.excludedChannels)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -404,6 +489,7 @@ func TestNewPostProcessor(t *testing.T) {
 				assert.Equal(t, tt.moderator, processor.moderator)
 				assert.Equal(t, tt.thresholdValue, processor.thresholdValue)
 				assert.Equal(t, tt.excludedUsers, processor.excludedUsers)
+				assert.Equal(t, tt.excludedChannels, processor.excludedChannels)
 				assert.NotNil(t, processor.stopChan)
 				assert.Empty(t, processor.postsToProcess)
 			}
