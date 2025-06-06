@@ -42,3 +42,10 @@ The Azure AI Content Safety API uses severity levels from 0-6:
 ## License
 
 This repository is licensed under the [Mattermost Source Available License](LICENSE) license.
+
+## Roadmap
+
+- [ ] Add local LLM option as the moderator backend
+- [ ] Support moderating text attachments
+- [ ] Support moderating images
+- [ ] Add metrics visualization support (Grafana)
