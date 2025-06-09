@@ -105,7 +105,7 @@ func TestQueueAndPopPost(t *testing.T) {
 		post := &model.Post{Id: "post1", Message: "Test message"}
 
 		// Queue a post
-		processor.queuePostForProcessing(post)
+		processor.queuePostForProcessing(&plugintest.API{}, post)
 
 		// Verify it's in the queue
 		assert.Len(t, processor.postsToProcess, 1)
@@ -130,9 +130,9 @@ func TestQueueAndPopPost(t *testing.T) {
 		post3 := &model.Post{Id: "post3", Message: "Third message"}
 
 		// Queue posts
-		processor.queuePostForProcessing(post1)
-		processor.queuePostForProcessing(post2)
-		processor.queuePostForProcessing(post3)
+		processor.queuePostForProcessing(&plugintest.API{}, post1)
+		processor.queuePostForProcessing(&plugintest.API{}, post2)
+		processor.queuePostForProcessing(&plugintest.API{}, post3)
 
 		// Verify queue length
 		assert.Len(t, processor.postsToProcess, 3)
@@ -162,7 +162,7 @@ func TestQueueAndPopPost(t *testing.T) {
 		for i := 0; i < numPosts; i++ {
 			go func(idx int) {
 				defer wg.Done()
-				processor.queuePostForProcessing(posts[idx])
+				processor.queuePostForProcessing(&plugintest.API{}, posts[idx])
 			}(i)
 		}
 		wg.Wait()

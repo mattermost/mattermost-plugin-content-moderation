@@ -16,8 +16,9 @@ import (
 // Using half of that to give us some wiggle room:
 // https://learn.microsoft.com/en-us/azure/ai-services/content-safety/faq
 const (
-	postsPerMinuteLimit = 500
-	processingInterval  = 1 / postsPerMinuteLimit * time.Minute
+	maxProcessingQueueSize = 10000
+	postsPerMinuteLimit    = 500
+	processingInterval     = 1 / postsPerMinuteLimit * time.Minute
 )
 
 // Message templates for moderation notifications
@@ -106,9 +107,14 @@ func (p *PostProcessor) stop() {
 	p.stopChan <- true
 }
 
-func (p *PostProcessor) queuePostForProcessing(post *model.Post) {
+func (p *PostProcessor) queuePostForProcessing(api plugin.API, post *model.Post) {
 	p.processLock.Lock()
 	defer p.processLock.Unlock()
+
+	if len(p.postsToProcess) >= maxProcessingQueueSize {
+		api.LogError("Content moderation unable to analyze post: exceeded maximum post queue size", "post_id", post.Id)
+		return
+	}
 
 	p.postsToProcess = append(p.postsToProcess, post)
 }
