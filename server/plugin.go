@@ -31,12 +31,6 @@ type Plugin struct {
 }
 
 func (p *Plugin) OnActivate() error {
-	config := p.getConfiguration()
-	if !config.Enabled {
-		p.API.LogInfo("Content moderation is disabled")
-		return nil
-	}
-
 	if !pluginapi.IsEnterpriseLicensedOrDevelopment(
 		p.API.GetConfig(),
 		p.API.GetLicense(),
@@ -52,6 +46,7 @@ func (p *Plugin) OnActivate() error {
 	}
 	p.sqlStore = SQLStore
 
+	config := p.getConfiguration()
 	if err := p.initialize(config); err != nil {
 		p.API.LogError("Cannot initialize plugin", "err", err)
 		return nil
