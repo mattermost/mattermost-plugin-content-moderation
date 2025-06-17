@@ -61,13 +61,14 @@ func (p *Plugin) OnActivate() error {
 }
 
 func (p *Plugin) initialize(config *configuration) error {
-	if !config.Enabled {
-		return nil
-	}
-
 	if p.processor != nil {
 		p.processor.stop()
 		p.processor = nil
+	}
+
+	if !config.Enabled {
+		p.API.LogInfo("Content moderation is disabled")
+		return nil
 	}
 
 	moderator, err := initModerator(p.API, config)
