@@ -379,7 +379,7 @@ func TestModeratePost(t *testing.T) {
 	t.Run("Content above threshold", func(t *testing.T) {
 		mockAPI := &plugintest.API{}
 		mockAPI.On("LogInfo", "Content was flagged by moderation",
-			"user_id", "user1", "threshold", 50, "sexual", 80).Return()
+			"post_id", "", "severity_threshold", 50, "computed_severity_sexual", 80).Return()
 
 		mockModerator := &MockModerator{}
 		mockModerator.On("ModerateText", mock.Anything, "Inappropriate content").

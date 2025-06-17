@@ -31,40 +31,44 @@ type Plugin struct {
 }
 
 func (p *Plugin) OnActivate() error {
-	// Ensure we have an enterprise license or a development environment
 	if !pluginapi.IsEnterpriseLicensedOrDevelopment(
 		p.API.GetConfig(),
 		p.API.GetLicense(),
 	) {
 		return fmt.Errorf("this plugin requires an Enterprise license")
 	}
-	// Setup direct store access
+
 	client := pluginapi.NewClient(p.API, p.Driver)
 	SQLStore, err := sqlstore.New(client.Store, &client.Log)
 	if err != nil {
-		p.API.LogError("cannot create SQLStore", "err", err)
+		p.API.LogError("Cannot create SQLStore", "err", err)
 		return err
 	}
 	p.sqlStore = SQLStore
 
-	return p.initialize()
+	config := p.getConfiguration()
+	if err := p.initialize(config); err != nil {
+		p.API.LogError("Cannot initialize plugin", "err", err)
+		return nil
+	}
+
+	return nil
 }
 
-func (p *Plugin) initialize() error {
+func (p *Plugin) initialize(config *configuration) error {
 	if p.processor != nil {
 		p.processor.stop()
 		p.processor = nil
 	}
 
-	config := p.getConfiguration()
 	if !config.Enabled {
 		p.API.LogInfo("Content moderation is disabled")
 		return nil
 	}
 
-	botID, err := p.API.EnsureBotUser(&model.Bot{Username: config.BotUsername})
+	moderator, err := initModerator(p.API, config)
 	if err != nil {
-		return errors.Wrap(err, "could not initialize bot user")
+		return errors.Wrap(err, "failed to initialize moderator")
 	}
 
 	excludedUsers := config.ExcludedUserSet()
@@ -72,20 +76,17 @@ func (p *Plugin) initialize() error {
 
 	thresholdValue, err := config.ThresholdValue()
 	if err != nil {
-		p.API.LogError("failed to load moderation threshold", "err", err)
 		return errors.Wrap(err, "failed to load moderation threshold")
 	}
 
-	moderator, err := initModerator(p.API, config)
+	botID, err := p.API.EnsureBotUser(&model.Bot{Username: config.BotUsername})
 	if err != nil {
-		p.API.LogError("failed to load moderation threshold", "err", err)
-		return nil
+		return errors.Wrap(err, "could not initialize bot user")
 	}
 
 	processor, err := newPostProcessor(
 		botID, moderator, thresholdValue, excludedUsers, excludedChannels)
 	if err != nil {
-		p.API.LogError("failed to create post processor", "err", err)
 		return errors.Wrap(err, "failed to create post processor")
 	}
 	p.processor = processor
@@ -104,7 +105,6 @@ func initModerator(api plugin.API, config *configuration) (moderation.Moderator,
 
 		mod, err := azure.New(azureConfig)
 		if err != nil {
-			api.LogError("failed to create Azure moderator", "err", err)
 			return nil, errors.Wrap(err, "failed to create Azure moderator")
 		}
 

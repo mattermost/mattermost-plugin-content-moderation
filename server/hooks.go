@@ -6,9 +6,13 @@ import (
 )
 
 func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
-	p.processor.queuePostForProcessing(p.API, post)
+	if p.processor != nil {
+		p.processor.queuePostForProcessing(p.API, post)
+	}
 }
 
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, post, _ *model.Post) {
-	p.processor.queuePostForProcessing(p.API, post)
+	if p.processor != nil {
+		p.processor.queuePostForProcessing(p.API, post)
+	}
 }
