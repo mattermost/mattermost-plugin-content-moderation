@@ -149,7 +149,7 @@ func (p *PostProcessor) moderatePost(api plugin.API, post *model.Post) error {
 	}
 
 	if p.resultSeverityAboveThreshold(result) {
-		p.logFlaggedResult(api, post.UserId, result)
+		p.logFlaggedResult(api, post.Id, result)
 		return ErrModerationRejection
 	}
 
@@ -184,12 +184,12 @@ func (p *PostProcessor) resultSeverityAboveThreshold(result moderation.Result) b
 	return false
 }
 
-func (p *PostProcessor) logFlaggedResult(api plugin.API, userID string, result moderation.Result) {
-	keyPairs := []any{"user_id", userID, "threshold", p.thresholdValue}
+func (p *PostProcessor) logFlaggedResult(api plugin.API, postID string, result moderation.Result) {
+	keyPairs := []any{"post_id", postID, "severity_threshold", p.thresholdValue}
 
 	for category, severity := range result {
 		if severity >= p.thresholdValue {
-			keyPairs = append(keyPairs, category)
+			keyPairs = append(keyPairs, fmt.Sprintf("computed_severity_%s", category))
 			keyPairs = append(keyPairs, severity)
 		}
 	}
