@@ -129,19 +129,19 @@ func (p *Plugin) setConfiguration(configuration *configuration) {
 
 // OnConfigurationChange is invoked when configuration changes may have been made.
 func (p *Plugin) OnConfigurationChange() error {
-	var configuration = new(configuration)
+	var config = new(configuration)
 
 	// Load the public configuration fields from the Mattermost server configuration.
-	if err := p.API.LoadPluginConfiguration(configuration); err != nil {
+	if err := p.API.LoadPluginConfiguration(config); err != nil {
 		return errors.Wrap(err, "failed to load plugin configuration")
 	}
 
-	p.setConfiguration(configuration)
+	p.setConfiguration(config)
 
 	// Initialize or reinitialize the moderator with the new configuration
-	if err := p.initialize(); err != nil {
+	if err := p.initialize(config); err != nil {
 		p.API.LogError("Failed to reinitialize after configuration change", "err", err)
-		return errors.Wrap(err, "failed to reinitialize")
+		return nil
 	}
 
 	return nil

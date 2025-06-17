@@ -27,7 +27,7 @@
                 "display_name": "Enable Content Moderation",
                 "type": "bool",
                 "help_text": "When true, content moderation is enabled.",
-                "default": true
+                "default": false
             },
             {
                 "key": "type",
