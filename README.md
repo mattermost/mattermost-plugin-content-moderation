@@ -31,6 +31,7 @@ Configuration options:
 | Azure Endpoint | Azure API endpoint |
 | Azure API Key | Azure API key (kept secure) |
 | Excluded Users | User IDs to exclude from content moderation. All other users will be moderated |
+| Excluded Channels | Channel IDs to exclude from content moderation. Messages in these channels will not be moderated |
 | Azure Threshold | Single severity threshold applied to all content categories |
 
 The Azure AI Content Safety API uses severity levels from 0-6:
@@ -56,6 +57,10 @@ Currently, yes. Push notifications may be sent for posts that contain harmful co
 ### Can I exclude certain users from moderation?
 
 Yes, you can specify user IDs in the "Excluded Users" configuration setting. All other users will have their content moderated automatically.
+
+### Can I exclude certain channels from moderation?
+
+Yes, you can specify channel IDs in the "Excluded Channels" configuration setting. Messages in these channels will not be moderated, regardless of the user who posted them.
 
 ### What if content moderation APIs are unavailable?
 
