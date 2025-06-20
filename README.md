@@ -64,11 +64,21 @@ Yes, you can specify channel IDs in the "Excluded Channels" configuration settin
 
 ### What if content moderation APIs are unavailable?
 
-The plugin uses a "fail-open" approach for reliability. If the moderation API is unavailable or returns an error, no posts are moderated.
+The plugin uses a "fail-open" approach for reliability. If the moderation API is unavailable or returns an error, no posts are moderated. When this occurs, you'll see error messages in the server logs like:
+
+```
+Content moderation error err="moderation service is not available" post_id="abc123" user_id="xyz789"
+```
 
 ### How can I monitor moderation activity?
 
-Currently, moderation events are logged in the Mattermost server logs. Future versions will include metrics visualization support for better monitoring and reporting.
+Moderation activity is logged in the Mattermost server logs. When content is flagged and removed, you'll see log entries like:
+
+```
+Content was flagged by moderation post_id="abc123" severity_threshold=2 computed_severity_hate=4 computed_severity_violence=3
+```
+
+This shows which post was flagged, the configured threshold, and the computed severity scores for each category that exceeded the threshold. Future versions will include metrics visualization support for better monitoring and reporting.
 
 ## Roadmap
 
