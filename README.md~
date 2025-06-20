@@ -84,7 +84,6 @@ This shows which post was flagged, the configured threshold, and the computed se
 
 - [ ] Implement notification blocking for posts under moderation
 - [ ] Add local LLM option as the moderator backend
-- [ ] Support excluding users from moderation by group
 - [ ] Support moderating text attachments
 - [ ] Support moderating images
 - [ ] Add metrics visualization support (Grafana)
