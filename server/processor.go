@@ -100,7 +100,7 @@ func (p *PostProcessor) stop() {
 func (p *PostProcessor) queuePostForProcessing(api plugin.API, post *model.Post) {
 	defer func() {
 		if r := recover(); r != nil {
-			api.LogDebug("Attempted to queue post after processor shutdown", "post_id", post.Id)
+			api.LogDebug("Panic occurred while queueing post for processing", "post_id", post.Id, "panic", r)
 		}
 	}()
 
