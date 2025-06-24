@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
@@ -150,7 +152,10 @@ func TestQueuePostForProcessing(t *testing.T) {
 		}
 
 		api := &plugintest.API{}
-		api.On("LogDebug", "Attempted to queue post after processor shutdown", "post_id", "post1").Return()
+		api.On("LogDebug", "Panic occurred while queueing post for processing",
+			"post_id", "post1", "panic", mock.MatchedBy(func(v interface{}) bool {
+				return strings.Contains(fmt.Sprintf("%v", v), "send on closed channel")
+			})).Return()
 
 		post := &model.Post{Id: "post1", Message: "Test message"}
 
