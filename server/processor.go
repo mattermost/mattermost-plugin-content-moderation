@@ -39,7 +39,7 @@ type PostProcessor struct {
 	excludedUsers    map[string]struct{}
 	excludedChannels map[string]struct{}
 
-	posts chan *model.Post
+	postsCh chan *model.Post
 }
 
 func newPostProcessor(
@@ -58,14 +58,14 @@ func newPostProcessor(
 		thresholdValue:   thresholdValue,
 		excludedUsers:    excludedUsers,
 		excludedChannels: excludedChannels,
-		posts:            make(chan *model.Post, maxProcessingQueueSize),
+		postsCh:          make(chan *model.Post, maxProcessingQueueSize),
 	}, nil
 }
 
 func (p *PostProcessor) start(api plugin.API) {
 	go func() {
 		for {
-			post, ok := <-p.posts
+			post, ok := <-p.postsCh
 			if !ok {
 				return
 			}
@@ -94,7 +94,7 @@ func (p *PostProcessor) start(api plugin.API) {
 }
 
 func (p *PostProcessor) stop() {
-	close(p.posts)
+	close(p.postsCh)
 }
 
 func (p *PostProcessor) queuePostForProcessing(api plugin.API, post *model.Post) {
@@ -105,7 +105,7 @@ func (p *PostProcessor) queuePostForProcessing(api plugin.API, post *model.Post)
 	}()
 
 	select {
-	case p.posts <- post:
+	case p.postsCh <- post:
 	default:
 		api.LogError("Content moderation unable to analyze post: exceeded maximum post queue size", "post_id", post.Id)
 	}

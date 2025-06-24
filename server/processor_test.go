@@ -100,7 +100,7 @@ func TestResultSeverityAboveThreshold(t *testing.T) {
 func TestQueuePostForProcessing(t *testing.T) {
 	t.Run("Queue post successfully", func(t *testing.T) {
 		processor := &PostProcessor{
-			posts: make(chan *model.Post, 10),
+			postsCh: make(chan *model.Post, 10),
 		}
 		api := &plugintest.API{}
 		post := &model.Post{Id: "post1", Message: "Test message"}
@@ -109,7 +109,7 @@ func TestQueuePostForProcessing(t *testing.T) {
 
 		// Verify post is in channel
 		select {
-		case queuedPost := <-processor.posts:
+		case queuedPost := <-processor.postsCh:
 			assert.Equal(t, post, queuedPost)
 		default:
 			t.Fatal("Post was not queued")
@@ -118,7 +118,7 @@ func TestQueuePostForProcessing(t *testing.T) {
 
 	t.Run("Queue full - log error", func(t *testing.T) {
 		processor := &PostProcessor{
-			posts: make(chan *model.Post, 1), // Small buffer
+			postsCh: make(chan *model.Post, 1), // Small buffer
 		}
 
 		api := &plugintest.API{}
@@ -135,7 +135,7 @@ func TestQueuePostForProcessing(t *testing.T) {
 
 		// Verify first post is still there
 		select {
-		case queuedPost := <-processor.posts:
+		case queuedPost := <-processor.postsCh:
 			assert.Equal(t, post1, queuedPost)
 		default:
 			t.Fatal("First post should still be in queue")
@@ -146,7 +146,7 @@ func TestQueuePostForProcessing(t *testing.T) {
 
 	t.Run("Queue post after shutdown", func(t *testing.T) {
 		processor := &PostProcessor{
-			posts: make(chan *model.Post, 10),
+			postsCh: make(chan *model.Post, 10),
 		}
 
 		api := &plugintest.API{}
@@ -155,14 +155,14 @@ func TestQueuePostForProcessing(t *testing.T) {
 		post := &model.Post{Id: "post1", Message: "Test message"}
 
 		// Close the channel to simulate shutdown
-		close(processor.posts)
+		close(processor.postsCh)
 
 		// This should not panic even with closed channel
 		processor.queuePostForProcessing(api, post)
 
 		// Verify no post was queued (channel is closed)
 		select {
-		case _, ok := <-processor.posts:
+		case _, ok := <-processor.postsCh:
 			if ok {
 				t.Fatal("Should not be able to receive from closed channel")
 			}
@@ -470,7 +470,7 @@ func TestNewPostProcessor(t *testing.T) {
 				assert.Equal(t, tt.thresholdValue, processor.thresholdValue)
 				assert.Equal(t, tt.excludedUsers, processor.excludedUsers)
 				assert.Equal(t, tt.excludedChannels, processor.excludedChannels)
-				assert.NotNil(t, processor.posts)
+				assert.NotNil(t, processor.postsCh)
 			}
 		})
 	}
