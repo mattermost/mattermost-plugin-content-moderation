@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
@@ -36,14 +35,11 @@ type PostProcessor struct {
 	botID     string
 	moderator moderation.Moderator
 
-	stopChan chan bool
-
 	thresholdValue   int
 	excludedUsers    map[string]struct{}
 	excludedChannels map[string]struct{}
 
-	postsToProcess []*model.Post
-	processLock    sync.Mutex
+	posts chan *model.Post
 }
 
 func newPostProcessor(
@@ -59,28 +55,27 @@ func newPostProcessor(
 	return &PostProcessor{
 		botID:            botID,
 		moderator:        moderator,
-		stopChan:         make(chan bool, 1),
 		thresholdValue:   thresholdValue,
 		excludedUsers:    excludedUsers,
 		excludedChannels: excludedChannels,
+		posts:            make(chan *model.Post, maxProcessingQueueSize),
 	}, nil
 }
 
 func (p *PostProcessor) start(api plugin.API) {
 	go func() {
 		for {
+			var ok bool
+			var post *model.Post
+
 			select {
-			case <-p.stopChan:
-				return
-			default:
+			case post, ok = <-p.posts:
+				if !ok {
+					return
+				}
 			}
 
 			time.Sleep(processingInterval)
-
-			post := p.popPostForProcessing()
-			if post == nil {
-				continue
-			}
 
 			err := p.moderatePost(api, post)
 			if err == nil {
@@ -104,33 +99,21 @@ func (p *PostProcessor) start(api plugin.API) {
 }
 
 func (p *PostProcessor) stop() {
-	p.stopChan <- true
+	close(p.posts)
 }
 
 func (p *PostProcessor) queuePostForProcessing(api plugin.API, post *model.Post) {
-	p.processLock.Lock()
-	defer p.processLock.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			api.LogDebug("Attempted to queue post after processor shutdown", "post_id", post.Id)
+		}
+	}()
 
-	if len(p.postsToProcess) >= maxProcessingQueueSize {
+	select {
+	case p.posts <- post:
+	default:
 		api.LogError("Content moderation unable to analyze post: exceeded maximum post queue size", "post_id", post.Id)
-		return
 	}
-
-	p.postsToProcess = append(p.postsToProcess, post)
-}
-
-func (p *PostProcessor) popPostForProcessing() *model.Post {
-	p.processLock.Lock()
-	defer p.processLock.Unlock()
-
-	if len(p.postsToProcess) == 0 {
-		return nil
-	}
-
-	post := p.postsToProcess[0]
-	p.postsToProcess = p.postsToProcess[1:]
-
-	return post
 }
 
 func (p *PostProcessor) moderatePost(api plugin.API, post *model.Post) error {
