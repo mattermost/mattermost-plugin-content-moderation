@@ -120,7 +120,7 @@ func TestQueuePostForProcessing(t *testing.T) {
 		processor := &PostProcessor{
 			posts: make(chan *model.Post, 1), // Small buffer
 		}
-		
+
 		api := &plugintest.API{}
 		api.On("LogError", "Content moderation unable to analyze post: exceeded maximum post queue size", "post_id", "post2").Return()
 
@@ -129,7 +129,7 @@ func TestQueuePostForProcessing(t *testing.T) {
 
 		// Fill the channel
 		processor.queuePostForProcessing(api, post1)
-		
+
 		// This should fail and log error
 		processor.queuePostForProcessing(api, post2)
 
@@ -148,10 +148,10 @@ func TestQueuePostForProcessing(t *testing.T) {
 		processor := &PostProcessor{
 			posts: make(chan *model.Post, 10),
 		}
-		
+
 		api := &plugintest.API{}
 		api.On("LogDebug", "Attempted to queue post after processor shutdown", "post_id", "post1").Return()
-		
+
 		post := &model.Post{Id: "post1", Message: "Test message"}
 
 		// Close the channel to simulate shutdown

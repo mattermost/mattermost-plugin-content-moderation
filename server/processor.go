@@ -65,14 +65,9 @@ func newPostProcessor(
 func (p *PostProcessor) start(api plugin.API) {
 	go func() {
 		for {
-			var ok bool
-			var post *model.Post
-
-			select {
-			case post, ok = <-p.posts:
-				if !ok {
-					return
-				}
+			post, ok := <-p.posts
+			if !ok {
+				return
 			}
 
 			time.Sleep(processingInterval)
