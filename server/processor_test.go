@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"sync"
+	"strings"
 	"testing"
 
 	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
@@ -99,98 +99,83 @@ func TestResultSeverityAboveThreshold(t *testing.T) {
 	}
 }
 
-func TestQueueAndPopPost(t *testing.T) {
-	t.Run("Queue and pop single post", func(t *testing.T) {
-		processor := &PostProcessor{}
+func TestQueuePostForProcessing(t *testing.T) {
+	t.Run("Queue post successfully", func(t *testing.T) {
+		processor := &PostProcessor{
+			postsCh: make(chan *model.Post, 10),
+		}
+		api := &plugintest.API{}
 		post := &model.Post{Id: "post1", Message: "Test message"}
 
-		// Queue a post
-		processor.queuePostForProcessing(&plugintest.API{}, post)
+		processor.queuePostForProcessing(api, post)
 
-		// Verify it's in the queue
-		assert.Len(t, processor.postsToProcess, 1)
-		assert.Equal(t, post, processor.postsToProcess[0])
-
-		// Pop the post and verify it's the same
-		poppedPost := processor.popPostForProcessing()
-		assert.Equal(t, post, poppedPost)
-
-		// Verify queue is now empty
-		assert.Empty(t, processor.postsToProcess)
-
-		// Verify popping from empty queue returns nil
-		emptyPost := processor.popPostForProcessing()
-		assert.Nil(t, emptyPost)
+		// Verify post is in channel
+		select {
+		case queuedPost := <-processor.postsCh:
+			assert.Equal(t, post, queuedPost)
+		default:
+			t.Fatal("Post was not queued")
+		}
 	})
 
-	t.Run("Queue and pop multiple posts in FIFO order", func(t *testing.T) {
-		processor := &PostProcessor{}
+	t.Run("Queue full - log error", func(t *testing.T) {
+		processor := &PostProcessor{
+			postsCh: make(chan *model.Post, 1), // Small buffer
+		}
+
+		api := &plugintest.API{}
+		api.On("LogError", "Content moderation unable to analyze post: exceeded maximum post queue size", "post_id", "post2").Return()
+
 		post1 := &model.Post{Id: "post1", Message: "First message"}
 		post2 := &model.Post{Id: "post2", Message: "Second message"}
-		post3 := &model.Post{Id: "post3", Message: "Third message"}
 
-		// Queue posts
-		processor.queuePostForProcessing(&plugintest.API{}, post1)
-		processor.queuePostForProcessing(&plugintest.API{}, post2)
-		processor.queuePostForProcessing(&plugintest.API{}, post3)
+		// Fill the channel
+		processor.queuePostForProcessing(api, post1)
 
-		// Verify queue length
-		assert.Len(t, processor.postsToProcess, 3)
+		// This should fail and log error
+		processor.queuePostForProcessing(api, post2)
 
-		// Verify posts are popped in FIFO order (first in, first out)
-		assert.Equal(t, post1, processor.popPostForProcessing())
-		assert.Equal(t, post2, processor.popPostForProcessing())
-		assert.Equal(t, post3, processor.popPostForProcessing())
+		// Verify first post is still there
+		select {
+		case queuedPost := <-processor.postsCh:
+			assert.Equal(t, post1, queuedPost)
+		default:
+			t.Fatal("First post should still be in queue")
+		}
 
-		// Verify queue is now empty
-		assert.Empty(t, processor.postsToProcess)
+		api.AssertExpectations(t)
 	})
 
-	t.Run("Thread safety of queue operations", func(t *testing.T) {
-		processor := &PostProcessor{}
-		const numPosts = 20
-		var wg sync.WaitGroup
-
-		// Create a bunch of posts
-		posts := make([]*model.Post, numPosts)
-		for i := 0; i < numPosts; i++ {
-			posts[i] = &model.Post{Id: fmt.Sprintf("post%d", i), Message: fmt.Sprintf("Message %d", i)}
+	t.Run("Queue post after shutdown", func(t *testing.T) {
+		processor := &PostProcessor{
+			postsCh: make(chan *model.Post, 10),
 		}
 
-		// Queue them from multiple goroutines
-		wg.Add(numPosts)
-		for i := 0; i < numPosts; i++ {
-			go func(idx int) {
-				defer wg.Done()
-				processor.queuePostForProcessing(&plugintest.API{}, posts[idx])
-			}(i)
+		api := &plugintest.API{}
+		api.On("LogDebug", "Panic occurred while queueing post for processing",
+			"post_id", "post1", "panic", mock.MatchedBy(func(v interface{}) bool {
+				return strings.Contains(fmt.Sprintf("%v", v), "send on closed channel")
+			})).Return()
+
+		post := &model.Post{Id: "post1", Message: "Test message"}
+
+		// Close the channel to simulate shutdown
+		close(processor.postsCh)
+
+		// This should not panic even with closed channel
+		processor.queuePostForProcessing(api, post)
+
+		// Verify no post was queued (channel is closed)
+		select {
+		case _, ok := <-processor.postsCh:
+			if ok {
+				t.Fatal("Should not be able to receive from closed channel")
+			}
+		default:
+			// Expected - channel is closed and empty
 		}
-		wg.Wait()
 
-		// Verify all posts were queued
-		assert.Len(t, processor.postsToProcess, numPosts)
-
-		// Pop them from multiple goroutines
-		poppedPosts := make([]*model.Post, 0, numPosts)
-		var popMutex sync.Mutex
-
-		wg.Add(numPosts)
-		for i := 0; i < numPosts; i++ {
-			go func() {
-				defer wg.Done()
-				post := processor.popPostForProcessing()
-				if post != nil {
-					popMutex.Lock()
-					poppedPosts = append(poppedPosts, post)
-					popMutex.Unlock()
-				}
-			}()
-		}
-		wg.Wait()
-
-		// Verify we got all posts back (though not necessarily in order due to concurrency)
-		assert.Len(t, poppedPosts, numPosts)
-		assert.Empty(t, processor.postsToProcess)
+		api.AssertExpectations(t)
 	})
 }
 
@@ -490,8 +475,7 @@ func TestNewPostProcessor(t *testing.T) {
 				assert.Equal(t, tt.thresholdValue, processor.thresholdValue)
 				assert.Equal(t, tt.excludedUsers, processor.excludedUsers)
 				assert.Equal(t, tt.excludedChannels, processor.excludedChannels)
-				assert.NotNil(t, processor.stopChan)
-				assert.Empty(t, processor.postsToProcess)
+				assert.NotNil(t, processor.postsCh)
 			}
 		})
 	}
