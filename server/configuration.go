@@ -20,10 +20,12 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
-	Enabled          bool   `json:"enabled"`
-	ExcludedUsers    string `json:"excludedUsers"`
-	ExcludedChannels string `json:"excludedChannels"`
-	BotUsername      string `json:"botUsername"`
+	Enabled                bool   `json:"enabled"`
+	ExcludedUsers          string `json:"excludedUsers"`
+	ExcludedChannels       string `json:"excludedChannels"`
+	ExcludeDirectMessages  bool   `json:"excludeDirectMessages"`
+	ExcludePrivateChannels bool   `json:"excludePrivateChannels"`
+	BotUsername            string `json:"botUsername"`
 
 	Type string `json:"type"`
 
@@ -121,6 +123,8 @@ func (p *Plugin) setConfiguration(configuration *configuration) {
 		"moderationEnabled", configuration.Enabled,
 		"excludedUsers", configuration.ExcludedUsers,
 		"excludedChannels", configuration.ExcludedChannels,
+		"excludeDirectMessages", configuration.ExcludeDirectMessages,
+		"excludePrivateChannels", configuration.ExcludePrivateChannels,
 		"moderationThreshold", configuration.Threshold,
 		"botUsername", configuration.BotUsername)
 
