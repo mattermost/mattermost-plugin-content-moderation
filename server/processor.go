@@ -32,7 +32,7 @@ const (
 	auditMetaKeyFlagged             = "flagged"
 	auditMetaKeyResult              = "result"
 	auditMetaKeyThreshold           = "threshold"
-	auditMetaKeyExcluded            = "excluded"
+	auditMetaKeyExcluded            = "exclusion_reason"
 	auditMetaKeyPost                = "post"
 )
 
@@ -141,17 +141,13 @@ func (p *PostProcessor) moderatePost(api plugin.API, post *model.Post, auditReco
 		return nil
 	}
 
-	if !p.shouldModerateUser(post.UserId) {
-		auditRecord.AddMeta(auditMetaKeyExcluded, true)
+	if !p.shouldModerateUser(post.UserId, auditRecord) {
 		return nil
 	}
 
-	if !p.shouldModerateChannel(post.ChannelId) {
-		auditRecord.AddMeta(auditMetaKeyExcluded, true)
+	if !p.shouldModerateChannel(post.ChannelId, auditRecord) {
 		return nil
 	}
-
-	auditRecord.AddMeta(auditMetaKeyExcluded, false)
 
 	ctx, cancel := context.WithTimeout(context.Background(), moderationTimeout)
 	defer cancel()
@@ -174,23 +170,35 @@ func (p *PostProcessor) moderatePost(api plugin.API, post *model.Post, auditReco
 	return nil
 }
 
-func (p *PostProcessor) shouldModerateUser(userID string) bool {
+func (p *PostProcessor) shouldModerateUser(userID string, auditRecord *model.AuditRecord) bool {
 	if userID == p.botID {
+		auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_plugin_bot")
 		return false
 	}
+
 	if len(p.excludedUsers) == 0 {
 		return true
 	}
-	_, excluded := p.excludedUsers[userID]
-	return !excluded
+
+	if _, excluded := p.excludedUsers[userID]; excluded {
+		auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_user_list")
+		return false
+	}
+
+	return true
 }
 
-func (p *PostProcessor) shouldModerateChannel(channelID string) bool {
+func (p *PostProcessor) shouldModerateChannel(channelID string, auditRecord *model.AuditRecord) bool {
 	if len(p.excludedChannels) == 0 {
 		return true
 	}
-	_, excluded := p.excludedChannels[channelID]
-	return !excluded
+
+	if _, excluded := p.excludedChannels[channelID]; excluded {
+		auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_channel_list")
+		return false
+	}
+
+	return true
 }
 
 func (p *PostProcessor) resultSeverityAboveThreshold(result moderation.Result) bool {

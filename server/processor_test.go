@@ -219,7 +219,8 @@ func TestShouldModerateUser(t *testing.T) {
 				excludedUsers: tt.excludedUsers,
 			}
 
-			result := processor.shouldModerateUser(tt.userID)
+			auditRecord := plugin.MakeAuditRecord("test", model.AuditStatusAttempt)
+			result := processor.shouldModerateUser(tt.userID, auditRecord)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -264,7 +265,8 @@ func TestShouldModerateChannel(t *testing.T) {
 				excludedChannels: tt.excludedChannels,
 			}
 
-			result := processor.shouldModerateChannel(tt.channelID)
+			auditRecord := plugin.MakeAuditRecord("test", model.AuditStatusAttempt)
+			result := processor.shouldModerateChannel(tt.channelID, auditRecord)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
