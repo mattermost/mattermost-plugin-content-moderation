@@ -19,6 +19,7 @@ const (
 	maxProcessingQueueSize = 10000
 	postsPerMinuteLimit    = 500
 	processingInterval     = 1 / postsPerMinuteLimit * time.Minute
+	channelCacheTTL        = 1 * time.Minute
 )
 
 // Message templates for moderation notifications
@@ -39,11 +40,16 @@ type PostProcessor struct {
 	thresholdValue         int
 	excludedUsers          map[string]struct{}
 	excludedChannels       map[string]struct{}
-	channelTypeCache       sync.Map // channel ID -> model.ChannelType
+	channelInfoCache       sync.Map // channel ID -> channelInfoCacheEntry
 	excludeDirectMessages  bool
 	excludePrivateChannels bool
 
 	postsCh chan *model.Post
+}
+
+type channelInfoCacheEntry struct {
+	channelType  model.ChannelType
+	creationTime time.Time
 }
 
 func newPostProcessor(
@@ -184,18 +190,26 @@ func (p *PostProcessor) shouldModerateChannel(api plugin.API, channelID string) 
 }
 
 func (p *PostProcessor) getChannelType(api plugin.API, channelID string) model.ChannelType {
-	channelType, ok := p.channelTypeCache.Load(channelID)
-	if !ok {
+	var entry channelInfoCacheEntry
+	entryObj, ok := p.channelInfoCache.Load(channelID)
+	if ok {
+		entry = entryObj.(channelInfoCacheEntry)
+	}
+	if !ok || time.Since(entry.creationTime) > channelCacheTTL {
 		channel, err := api.GetChannel(channelID)
 		if err != nil {
-			api.LogError("Failed to get channel type for moderation check", "channel_id", channelID, "err", err)
+			api.LogError("Failed to get channel type for moderation check",
+				"channel_id", channelID, "err", err)
 			// Default to open channel if we can't determine the type
 			return model.ChannelTypeOpen
 		}
-		p.channelTypeCache.Store(channelID, channel.Type)
-		channelType = channel.Type
+		entry = channelInfoCacheEntry{
+			channelType:  channel.Type,
+			creationTime: time.Now(),
+		}
+		p.channelInfoCache.Store(channelID, entry)
 	}
-	return channelType.(model.ChannelType)
+	return entry.channelType
 }
 
 func (p *PostProcessor) resultSeverityAboveThreshold(result moderation.Result) bool {
