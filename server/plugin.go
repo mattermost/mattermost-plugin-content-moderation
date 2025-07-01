@@ -93,9 +93,8 @@ func (p *Plugin) initialize(config *configuration) error {
 		return errors.Wrap(err, "could not initialize bot user")
 	}
 
-	postCache := newPostCache()
 	postProcessor, err := newPostProcessor(
-		botID, config.AuditLoggingEnabled, postCache, moderationResultsCache, excludedUsers, excludedChannels)
+		botID, config.AuditLoggingEnabled, moderationResultsCache, excludedUsers, excludedChannels)
 	if err != nil {
 		return errors.Wrap(err, "failed to create post post processor")
 	}

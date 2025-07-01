@@ -40,16 +40,13 @@ type PostProcessor struct {
 	excludedUsers    map[string]struct{}
 	excludedChannels map[string]struct{}
 	resultsCache     *moderationResultsCache
-	postCache        *postCache
 	postsCh          chan *model.Post
 	done             chan struct{}
-	cleanupTicker    *time.Ticker
 }
 
 func newPostProcessor(
 	botID string,
 	auditLogEnabled bool,
-	postCache *postCache,
 	moderationResultsCache *moderationResultsCache,
 	excludedUsers map[string]struct{},
 	excludedChannels map[string]struct{},
@@ -58,27 +55,14 @@ func newPostProcessor(
 		botID:            botID,
 		resultsCache:     moderationResultsCache,
 		auditLogEnabled:  auditLogEnabled,
-		postCache:        postCache,
 		excludedUsers:    excludedUsers,
 		excludedChannels: excludedChannels,
 		postsCh:          make(chan *model.Post, maxPostProcessingQueueSize),
 		done:             make(chan struct{}),
-		cleanupTicker:    time.NewTicker(5 * time.Minute),
 	}, nil
 }
 
 func (p *PostProcessor) start(api plugin.API) {
-	go func() {
-		for {
-			select {
-			case <-p.cleanupTicker.C:
-				p.postCache.cleanup(false)
-			case <-p.done:
-				return
-			}
-		}
-	}()
-
 	go func() {
 		for {
 			var post *model.Post
@@ -88,8 +72,6 @@ func (p *PostProcessor) start(api plugin.API) {
 			case <-p.done:
 				return
 			}
-
-			p.postCache.setPost(post)
 
 			record := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
 			model.AddEventParameterAuditableToAuditRec(record, auditMetaKeyPost, post)
@@ -142,10 +124,6 @@ func (p *PostProcessor) start(api plugin.API) {
 }
 
 func (p *PostProcessor) stop() {
-	if p.cleanupTicker != nil {
-		p.cleanupTicker.Stop()
-		p.cleanupTicker = nil
-	}
 	close(p.done)
 }
 
