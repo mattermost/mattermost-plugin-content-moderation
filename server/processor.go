@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
@@ -18,6 +19,7 @@ const (
 	maxProcessingQueueSize = 10000
 	postsPerMinuteLimit    = 500
 	processingInterval     = 1 / postsPerMinuteLimit * time.Minute
+	channelCacheTTL        = 1 * time.Minute
 )
 
 // Message templates for moderation notifications
@@ -42,13 +44,23 @@ var (
 )
 
 type PostProcessor struct {
-	botID            string
-	moderator        moderation.Moderator
-	auditLogEnabled  bool
-	thresholdValue   int
-	excludedUsers    map[string]struct{}
-	excludedChannels map[string]struct{}
-	postsCh          chan *model.Post
+	botID           string
+	moderator       moderation.Moderator
+	auditLogEnabled bool
+
+	thresholdValue         int
+	excludedUsers          map[string]struct{}
+	excludedChannels       map[string]struct{}
+	channelInfoCache       sync.Map // channel ID -> channelInfoCacheEntry
+	excludeDirectMessages  bool
+	excludePrivateChannels bool
+
+	postsCh chan *model.Post
+}
+
+type channelInfoCacheEntry struct {
+	channelType  model.ChannelType
+	creationTime time.Time
 }
 
 func newPostProcessor(
@@ -58,18 +70,22 @@ func newPostProcessor(
 	thresholdValue int,
 	excludedUsers map[string]struct{},
 	excludedChannels map[string]struct{},
+	excludeDirectMessages bool,
+	excludePrivateChannels bool,
 ) (*PostProcessor, error) {
 	if moderator == nil {
 		return nil, ErrModerationUnavailable
 	}
 	return &PostProcessor{
-		botID:            botID,
-		moderator:        moderator,
-		auditLogEnabled:  auditLogEnabled,
-		thresholdValue:   thresholdValue,
-		excludedUsers:    excludedUsers,
-		excludedChannels: excludedChannels,
-		postsCh:          make(chan *model.Post, maxProcessingQueueSize),
+		botID:                  botID,
+		moderator:              moderator,
+		auditLogEnabled:        auditLogEnabled,
+		thresholdValue:         thresholdValue,
+		excludedUsers:          excludedUsers,
+		excludedChannels:       excludedChannels,
+		excludeDirectMessages:  excludeDirectMessages,
+		excludePrivateChannels: excludePrivateChannels,
+		postsCh:                make(chan *model.Post, maxProcessingQueueSize),
 	}, nil
 }
 
@@ -145,7 +161,7 @@ func (p *PostProcessor) moderatePost(api plugin.API, post *model.Post, auditReco
 		return nil
 	}
 
-	if !p.shouldModerateChannel(post.ChannelId, auditRecord) {
+	if !p.shouldModerateChannel(api, post.ChannelId, auditRecord) {
 		return nil
 	}
 
@@ -188,17 +204,52 @@ func (p *PostProcessor) shouldModerateUser(userID string, auditRecord *model.Aud
 	return true
 }
 
-func (p *PostProcessor) shouldModerateChannel(channelID string, auditRecord *model.AuditRecord) bool {
-	if len(p.excludedChannels) == 0 {
-		return true
+func (p *PostProcessor) shouldModerateChannel(api plugin.API, channelID string, auditRecord *model.AuditRecord) bool {
+	if len(p.excludedChannels) > 0 {
+		if _, excluded := p.excludedChannels[channelID]; excluded {
+			auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_channel_list")
+			return false
+		}
 	}
 
-	if _, excluded := p.excludedChannels[channelID]; excluded {
-		auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_channel_list")
+	channelType := p.getChannelType(api, channelID)
+
+	if p.excludeDirectMessages &&
+		(channelType == model.ChannelTypeDirect ||
+			channelType == model.ChannelTypeGroup) {
+		auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_private_messages")
+		return false
+	}
+
+	if p.excludePrivateChannels && channelType == model.ChannelTypePrivate {
+		auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_private_channels")
 		return false
 	}
 
 	return true
+}
+
+func (p *PostProcessor) getChannelType(api plugin.API, channelID string) model.ChannelType {
+	var entry channelInfoCacheEntry
+	entryObj, ok := p.channelInfoCache.Load(channelID)
+	if ok {
+		entry = entryObj.(channelInfoCacheEntry)
+	}
+	if !ok || time.Since(entry.creationTime) > channelCacheTTL {
+		channel, err := api.GetChannel(channelID)
+		if err != nil {
+			api.LogError("Failed to get channel type for moderation check",
+				"channel_id", channelID, "err", err)
+			// Default to open channel if we can't determine the type
+			return model.ChannelTypeOpen
+		}
+		entry = channelInfoCacheEntry{
+			channelType:  channel.Type,
+			creationTime: time.Now(),
+		}
+		p.channelInfoCache.Store(channelID, entry)
+	}
+	return entry.channelType
 }
 
 func (p *PostProcessor) resultSeverityAboveThreshold(result moderation.Result) bool {

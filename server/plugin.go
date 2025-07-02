@@ -85,7 +85,9 @@ func (p *Plugin) initialize(config *configuration) error {
 	}
 
 	processor, err := newPostProcessor(
-		botID, moderator, config.AuditLoggingEnabled, thresholdValue, excludedUsers, excludedChannels)
+		botID, moderator, config.AuditLoggingEnabled,
+		thresholdValue, excludedUsers, excludedChannels,
+		config.ExcludeDirectMessages, config.ExcludePrivateChannels)
 	if err != nil {
 		return errors.Wrap(err, "failed to create post processor")
 	}

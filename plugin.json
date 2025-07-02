@@ -58,6 +58,20 @@
                 "placeholder": "Enter your API key here"
             },
             {
+                "key": "excludeDirectMessages",
+                "display_name": "Exclude Direct/Group Messages",
+                "type": "bool",
+                "help_text": "When enabled, direct messages and group messages will not be moderated.",
+                "default": false
+            },
+            {
+                "key": "excludePrivateChannels",
+                "display_name": "Exclude Private Channels",
+                "type": "bool",
+                "help_text": "When enabled, private channels will not be moderated.",
+                "default": false
+            },
+            {
                 "key": "excludedUsers",
                 "display_name": "Excluded Users",
                 "type": "custom",
