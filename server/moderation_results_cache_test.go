@@ -135,8 +135,7 @@ func TestModerationResultsCache_waitForResult(t *testing.T) {
 
 		if result == nil {
 			t.Error("Expected result, got nil")
-		}
-		if result.code != moderationResultProcessed {
+		} else if result.code != moderationResultProcessed {
 			t.Errorf("Expected moderationResultProcessed, got %v", result.code)
 		}
 		if duration > 50*time.Millisecond {
@@ -168,8 +167,7 @@ func TestModerationResultsCache_waitForResult(t *testing.T) {
 		case result := <-resultCh:
 			if result == nil {
 				t.Error("Expected result, got nil")
-			}
-			if result.code != moderationResultProcessed {
+			} else if result.code != moderationResultProcessed {
 				t.Errorf("Expected moderationResultProcessed, got %v", result.code)
 			}
 		case <-time.After(500 * time.Millisecond):
@@ -240,8 +238,7 @@ func TestModerationResultsCache_waitForResult(t *testing.T) {
 			case result := <-resultChs[i]:
 				if result == nil {
 					t.Errorf("Waiter %d: Expected result, got nil", i)
-				}
-				if result.code != moderationResultProcessed {
+				} else if result.code != moderationResultProcessed {
 					t.Errorf("Waiter %d: Expected moderationResultProcessed, got %v", i, result.code)
 				}
 			case <-time.After(500 * time.Millisecond):
