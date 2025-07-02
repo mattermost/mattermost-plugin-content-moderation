@@ -30,8 +30,11 @@ Configuration options:
 | Type | Moderation provider type (currently only "azure" is supported) |
 | Azure Endpoint | Azure API endpoint |
 | Azure API Key | Azure API key (kept secure) |
+| Exclude Direct/Group Messages | When enabled, direct messages and group messages will not be moderated |
+| Exclude Private Channels | When enabled, private channels will not be moderated |
 | Excluded Users | User IDs to exclude from content moderation. All other users will be moderated |
 | Excluded Channels | Channel IDs to exclude from content moderation. Messages in these channels will not be moderated |
+| Bot Username | The username displayed for moderation notifications |
 | Azure Threshold | Single severity threshold applied to all content categories |
 
 The Azure AI Content Safety API uses severity levels from 0-6:
@@ -60,7 +63,11 @@ Yes, you can specify user IDs in the "Excluded Users" configuration setting. All
 
 ### Can I exclude certain channels from moderation?
 
-Yes, you can specify channel IDs in the "Excluded Channels" configuration setting. Messages in these channels will not be moderated, regardless of the user who posted them.
+Yes, you have several options for excluding channels from moderation:
+
+1. **Channel Type Exclusions**: Use the "Exclude Direct/Group Messages" option to disable moderation for all direct messages and group messages. Use the "Exclude Private Channels" option to disable moderation for all private channels.
+
+2. **Specific Channel Exclusions**: Specify individual channel IDs in the "Excluded Channels" configuration setting. Messages in these specific channels will not be moderated, regardless of the user who posted them.
 
 ### What if content moderation APIs are unavailable?
 

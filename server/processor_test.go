@@ -226,44 +226,94 @@ func TestShouldModerateUser(t *testing.T) {
 
 func TestShouldModerateChannel(t *testing.T) {
 	tests := []struct {
-		name             string
-		excludedChannels map[string]struct{}
-		channelID        string
-		expected         bool
+		name                   string
+		excludedChannels       map[string]struct{}
+		excludeDirectMessages  bool
+		excludePrivateChannels bool
+		channelID              string
+		channelType            model.ChannelType
+		expected               bool
 	}{
 		{
-			name:             "Channel not excluded",
-			excludedChannels: map[string]struct{}{},
-			channelID:        "any_channel",
-			expected:         true,
+			name:                   "Public channel - moderated",
+			excludedChannels:       map[string]struct{}{},
+			excludeDirectMessages:  false,
+			excludePrivateChannels: false,
+			channelID:              "public_channel",
+			channelType:            model.ChannelTypeOpen,
+			expected:               true,
 		},
 		{
-			name:             "Channel is excluded",
-			excludedChannels: map[string]struct{}{"channel1": {}, "channel2": {}},
-			channelID:        "channel1",
-			expected:         false,
+			name:                   "Private channel - moderated when not excluded",
+			excludedChannels:       map[string]struct{}{},
+			excludeDirectMessages:  false,
+			excludePrivateChannels: false,
+			channelID:              "private_channel",
+			channelType:            model.ChannelTypePrivate,
+			expected:               true,
 		},
 		{
-			name:             "Channel not in excluded list",
-			excludedChannels: map[string]struct{}{"channel1": {}, "channel2": {}},
-			channelID:        "channel3",
-			expected:         true,
+			name:                   "Private channel - excluded",
+			excludedChannels:       map[string]struct{}{},
+			excludeDirectMessages:  false,
+			excludePrivateChannels: true,
+			channelID:              "private_channel",
+			channelType:            model.ChannelTypePrivate,
+			expected:               false,
 		},
 		{
-			name:             "Empty excluded list",
-			excludedChannels: map[string]struct{}{},
-			channelID:        "any_channel",
-			expected:         true,
+			name:                   "Direct message - moderated when not excluded",
+			excludedChannels:       map[string]struct{}{},
+			excludeDirectMessages:  false,
+			excludePrivateChannels: false,
+			channelID:              "direct_channel",
+			channelType:            model.ChannelTypeDirect,
+			expected:               true,
+		},
+		{
+			name:                   "Direct message - excluded",
+			excludedChannels:       map[string]struct{}{},
+			excludeDirectMessages:  true,
+			excludePrivateChannels: false,
+			channelID:              "direct_channel",
+			channelType:            model.ChannelTypeDirect,
+			expected:               false,
+		},
+		{
+			name:                   "Group message - excluded",
+			excludedChannels:       map[string]struct{}{},
+			excludeDirectMessages:  true,
+			excludePrivateChannels: false,
+			channelID:              "group_channel",
+			channelType:            model.ChannelTypeGroup,
+			expected:               false,
+		},
+		{
+			name:                   "Channel explicitly excluded",
+			excludedChannels:       map[string]struct{}{"excluded_channel": {}},
+			excludeDirectMessages:  false,
+			excludePrivateChannels: false,
+			channelID:              "excluded_channel",
+			channelType:            model.ChannelTypeOpen,
+			expected:               false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockAPI := &plugintest.API{}
+			mockAPI.On("GetChannel", tt.channelID).Return(&model.Channel{
+				Id:   tt.channelID,
+				Type: tt.channelType,
+			}, nil)
+
 			processor := &PostProcessor{
-				excludedChannels: tt.excludedChannels,
+				excludedChannels:       tt.excludedChannels,
+				excludeDirectMessages:  tt.excludeDirectMessages,
+				excludePrivateChannels: tt.excludePrivateChannels,
 			}
 
-			result := processor.shouldModerateChannel(tt.channelID)
+			result := processor.shouldModerateChannel(mockAPI, tt.channelID)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -292,9 +342,11 @@ func TestModeratePost(t *testing.T) {
 		mockModerator := &MockModerator{}
 
 		processor := &PostProcessor{
-			moderator:        mockModerator,
-			excludedUsers:    map[string]struct{}{},
-			excludedChannels: map[string]struct{}{"channel1": {}, "channel2": {}},
+			moderator:              mockModerator,
+			excludedUsers:          map[string]struct{}{},
+			excludedChannels:       map[string]struct{}{"channel1": {}, "channel2": {}},
+			excludeDirectMessages:  false,
+			excludePrivateChannels: false,
 		}
 
 		post := &model.Post{UserId: "user1", ChannelId: "channel1", Message: "Test message"}
@@ -306,11 +358,17 @@ func TestModeratePost(t *testing.T) {
 
 	t.Run("Skip moderation for empty message", func(t *testing.T) {
 		mockAPI := &plugintest.API{}
+		mockAPI.On("GetChannel", "").Return(&model.Channel{
+			Id:   "",
+			Type: model.ChannelTypeOpen,
+		}, nil)
 		mockModerator := &MockModerator{}
 
 		processor := &PostProcessor{
-			moderator:     mockModerator,
-			excludedUsers: map[string]struct{}{},
+			moderator:              mockModerator,
+			excludedUsers:          map[string]struct{}{},
+			excludeDirectMessages:  false,
+			excludePrivateChannels: false,
 		}
 
 		post := &model.Post{UserId: "user1", Message: ""}
@@ -322,6 +380,10 @@ func TestModeratePost(t *testing.T) {
 
 	t.Run("Moderation API failure", func(t *testing.T) {
 		mockAPI := &plugintest.API{}
+		mockAPI.On("GetChannel", "").Return(&model.Channel{
+			Id:   "",
+			Type: model.ChannelTypeOpen,
+		}, nil)
 		mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything).Return()
 
 		mockModerator := &MockModerator{}
@@ -329,9 +391,11 @@ func TestModeratePost(t *testing.T) {
 			Return(moderation.Result{}, errors.New("API error"))
 
 		processor := &PostProcessor{
-			moderator:      mockModerator,
-			excludedUsers:  map[string]struct{}{},
-			thresholdValue: 50,
+			moderator:              mockModerator,
+			excludedUsers:          map[string]struct{}{},
+			thresholdValue:         50,
+			excludeDirectMessages:  false,
+			excludePrivateChannels: false,
 		}
 
 		post := &model.Post{UserId: "user1", Message: "Test message"}
@@ -343,15 +407,21 @@ func TestModeratePost(t *testing.T) {
 
 	t.Run("Content below threshold", func(t *testing.T) {
 		mockAPI := &plugintest.API{}
+		mockAPI.On("GetChannel", "").Return(&model.Channel{
+			Id:   "",
+			Type: model.ChannelTypeOpen,
+		}, nil)
 
 		mockModerator := &MockModerator{}
 		mockModerator.On("ModerateText", mock.Anything, "Test message").
 			Return(moderation.Result{"category": 10}, nil)
 
 		processor := &PostProcessor{
-			moderator:      mockModerator,
-			excludedUsers:  map[string]struct{}{},
-			thresholdValue: 50,
+			moderator:              mockModerator,
+			excludedUsers:          map[string]struct{}{},
+			thresholdValue:         50,
+			excludeDirectMessages:  false,
+			excludePrivateChannels: false,
 		}
 
 		post := &model.Post{UserId: "user1", Message: "Test message"}
@@ -363,6 +433,10 @@ func TestModeratePost(t *testing.T) {
 
 	t.Run("Content above threshold", func(t *testing.T) {
 		mockAPI := &plugintest.API{}
+		mockAPI.On("GetChannel", "").Return(&model.Channel{
+			Id:   "",
+			Type: model.ChannelTypeOpen,
+		}, nil)
 		mockAPI.On("LogInfo", "Content was flagged by moderation",
 			"post_id", "", "severity_threshold", 50, "computed_severity_sexual", 80).Return()
 
@@ -375,9 +449,11 @@ func TestModeratePost(t *testing.T) {
 			}, nil)
 
 		processor := &PostProcessor{
-			moderator:      mockModerator,
-			excludedUsers:  map[string]struct{}{},
-			thresholdValue: 50,
+			moderator:              mockModerator,
+			excludedUsers:          map[string]struct{}{},
+			thresholdValue:         50,
+			excludeDirectMessages:  false,
+			excludePrivateChannels: false,
 		}
 
 		post := &model.Post{UserId: "user1", Message: "Inappropriate content"}
@@ -459,7 +535,7 @@ func TestNewPostProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor, err := newPostProcessor(tt.botID, tt.moderator, tt.thresholdValue, tt.excludedUsers, tt.excludedChannels)
+			processor, err := newPostProcessor(tt.botID, tt.moderator, tt.thresholdValue, tt.excludedUsers, tt.excludedChannels, false, false)
 
 			if tt.wantErr {
 				assert.Error(t, err)
