@@ -80,64 +80,66 @@ func newPostProcessor(
 }
 
 func (p *PostProcessor) start(api plugin.API) {
-	go func() {
-		for {
-			var post *model.Post
+	go p.processPostsLoop(api)
+}
 
-			select {
-			case post = <-p.postsCh:
-			case <-p.done:
-				return
-			}
+func (p *PostProcessor) processPostsLoop(api plugin.API) {
+	for {
+		var post *model.Post
 
-			record := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
-			model.AddEventParameterAuditableToAuditRec(record, auditMetaKeyPost, post)
+		select {
+		case post = <-p.postsCh:
+		case <-p.done:
+			return
+		}
 
-			if !p.shouldModerateUser(post.UserId, record) ||
-				!p.shouldModerateChannel(api, post.ChannelId, record) {
-				continue
-			}
+		record := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
+		model.AddEventParameterAuditableToAuditRec(record, auditMetaKeyPost, post)
 
-			result := p.resultsCache.waitForResult(post.Message, waitForResultTimeout)
-			if result == nil {
-				errMsg := "Failed to complete content moderation"
-				api.LogError(errMsg, "post_id", post.Id, "err", context.DeadlineExceeded)
-				p.logAuditFail(api, record, errMsg, context.DeadlineExceeded)
-				continue
-			}
+		if !p.shouldModerateUser(post.UserId, record) ||
+			!p.shouldModerateChannel(api, post.ChannelId, record) {
+			continue
+		}
 
-			switch result.code {
-			case moderationResultProcessed:
-				p.logAuditSuccess(api, record)
-				continue
-			case moderationResultPending:
-				errMsg := "Failed to complete content moderation"
-				err := errors.New("moderation result from cache is still pending")
+		result := p.resultsCache.waitForResult(post.Message, waitForResultTimeout)
+		if result == nil {
+			errMsg := "Failed to complete content moderation"
+			api.LogError(errMsg, "post_id", post.Id, "err", context.DeadlineExceeded)
+			p.logAuditFail(api, record, errMsg, context.DeadlineExceeded)
+			continue
+		}
+
+		switch result.code {
+		case moderationResultProcessed:
+			p.logAuditSuccess(api, record)
+			continue
+		case moderationResultPending:
+			errMsg := "Failed to complete content moderation"
+			err := errors.New("moderation result from cache is still pending")
+			api.LogError(errMsg, "post_id", post.Id, "err", err)
+			p.logAuditFail(api, record, errMsg, err)
+			continue
+		case moderationResultFlagged:
+			if err := api.DeletePost(post.Id); err != nil {
+				errMsg := "Failed to delete post flagged by content moderation"
 				api.LogError(errMsg, "post_id", post.Id, "err", err)
 				p.logAuditFail(api, record, errMsg, err)
 				continue
-			case moderationResultFlagged:
-				if err := api.DeletePost(post.Id); err != nil {
-					errMsg := "Failed to delete post flagged by content moderation"
-					api.LogError(errMsg, "post_id", post.Id, "err", err)
-					p.logAuditFail(api, record, errMsg, err)
-					continue
-				}
-				if err := p.reportModerationEvent(api, post); err != nil {
-					errMsg := "Failed report content moderation event"
-					api.LogError(errMsg, "post_id", post.Id, "err", err)
-					p.logAuditFail(api, record, errMsg, err)
-					continue
-				}
-				continue
-			case moderationResultError:
-				errMsg := "Content moderation error"
-				api.LogError(errMsg, "err", result.err, "post_id", post.Id, "user_id", post.UserId)
-				p.logAuditFail(api, record, errMsg, result.err)
+			}
+			if err := p.reportModerationEvent(api, post); err != nil {
+				errMsg := "Failed report content moderation event"
+				api.LogError(errMsg, "post_id", post.Id, "err", err)
+				p.logAuditFail(api, record, errMsg, err)
 				continue
 			}
+			continue
+		case moderationResultError:
+			errMsg := "Content moderation error"
+			api.LogError(errMsg, "err", result.err, "post_id", post.Id, "user_id", post.UserId)
+			p.logAuditFail(api, record, errMsg, result.err)
+			continue
 		}
-	}()
+	}
 }
 
 func (p *PostProcessor) stop() {
