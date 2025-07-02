@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 	"time"
+
+	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
 )
 
 func TestModerationResultsCache_cleanup(t *testing.T) {
@@ -13,7 +15,7 @@ func TestModerationResultsCache_cleanup(t *testing.T) {
 		// Add some entries
 		cache.setResultPending("message1")
 		cache.setResultPending("message2")
-		cache.setModerationResultNotFlagged("message3")
+		cache.setModerationResultNotFlagged("message3", moderation.Result{})
 
 		// Verify entries exist
 		if len(cache.cache) != 3 {
@@ -38,7 +40,7 @@ func TestModerationResultsCache_cleanup(t *testing.T) {
 
 		// Add some entries
 		cache.setResultPending("message1")
-		cache.setModerationResultNotFlagged("message2")
+		cache.setModerationResultNotFlagged("message2", moderation.Result{})
 
 		// Verify entries exist
 		if len(cache.cache) != 2 {
@@ -126,7 +128,7 @@ func TestModerationResultsCache_waitForResult(t *testing.T) {
 		cache := newModerationResultsCache()
 
 		// Set a processed result
-		cache.setModerationResultNotFlagged("message1")
+		cache.setModerationResultNotFlagged("message1", moderation.Result{})
 
 		// Wait for result should return immediately
 		start := time.Now()

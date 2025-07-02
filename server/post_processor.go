@@ -109,8 +109,11 @@ func (p *PostProcessor) processPostsLoop(api plugin.API) {
 			continue
 		}
 
+		record.AddMeta(auditMetaKeyResult, result.result)
+
 		switch result.code {
 		case moderationResultProcessed:
+			record.AddMeta(auditMetaKeyFlagged, false)
 			p.logAuditSuccess(api, record)
 			continue
 		case moderationResultPending:
@@ -120,6 +123,7 @@ func (p *PostProcessor) processPostsLoop(api plugin.API) {
 			p.logAuditFail(api, record, errMsg, err)
 			continue
 		case moderationResultFlagged:
+			record.AddMeta(auditMetaKeyFlagged, true)
 			if err := api.DeletePost(post.Id); err != nil {
 				errMsg := "Failed to delete post flagged by content moderation"
 				api.LogError(errMsg, "post_id", post.Id, "err", err)
@@ -132,6 +136,7 @@ func (p *PostProcessor) processPostsLoop(api plugin.API) {
 				p.logAuditFail(api, record, errMsg, err)
 				continue
 			}
+			p.logAuditSuccess(api, record)
 			continue
 		case moderationResultError:
 			errMsg := "Content moderation error"

@@ -85,7 +85,7 @@ func (pc *moderationResultsCache) setModerationResultError(message string, err e
 	pc.notifyListeners(message, result)
 }
 
-func (pc *moderationResultsCache) setModerationResultNotFlagged(message string) {
+func (pc *moderationResultsCache) setModerationResultNotFlagged(message string, result moderation.Result) {
 	if message == "" {
 		return
 	}
@@ -93,12 +93,13 @@ func (pc *moderationResultsCache) setModerationResultNotFlagged(message string) 
 	pc.cacheLock.Lock()
 	defer pc.cacheLock.Unlock()
 
-	result := &moderationResult{
+	moderationResult := &moderationResult{
 		code:      moderationResultProcessed,
+		result:    result,
 		timestamp: time.Now(),
 	}
-	pc.cache[message] = result
-	pc.notifyListeners(message, result)
+	pc.cache[message] = moderationResult
+	pc.notifyListeners(message, moderationResult)
 }
 
 func (pc *moderationResultsCache) setModerationResultFlagged(message string, result moderation.Result) {

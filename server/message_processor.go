@@ -113,7 +113,7 @@ func (p *ModerationProcessor) moderateMessage(message string) {
 		return
 	}
 
-	p.moderationResultsCache.setModerationResultNotFlagged(message)
+	p.moderationResultsCache.setModerationResultNotFlagged(message, result)
 }
 
 func (p *ModerationProcessor) resultSeverityAboveThreshold(result moderation.Result) bool {

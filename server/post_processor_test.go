@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
@@ -346,7 +347,7 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 		}
 
 		// Set processed result
-		cache.setModerationResultNotFlagged("test message")
+		cache.setModerationResultNotFlagged("test message", moderation.Result{})
 
 		// Start processing loop in goroutine
 		done := make(chan struct{})
