@@ -162,7 +162,7 @@ func TestModerationResultsCache_waitForResult(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Complete the moderation
-		cache.setModerationResultNotFlagged("message1")
+		cache.setModerationResultNotFlagged("message1", moderation.Result{})
 
 		// Should receive the result
 		select {
@@ -232,7 +232,7 @@ func TestModerationResultsCache_waitForResult(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Complete the moderation
-		cache.setModerationResultNotFlagged("message1")
+		cache.setModerationResultNotFlagged("message1", moderation.Result{})
 
 		// All waiters should receive the result
 		for i := 0; i < numWaiters; i++ {
