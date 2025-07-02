@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/pkg/errors"
 )
+
+const channelCacheTTL = 1 * time.Minute
 
 const (
 	channelNotificationTemplate = "_A post with potentially offensive content was flagged and removed._"
@@ -25,7 +28,7 @@ const (
 	auditMetaKeyFlagged             = "flagged"
 	auditMetaKeyResult              = "result"
 	auditMetaKeyThreshold           = "threshold"
-	auditMetaKeyExcluded            = "excluded"
+	auditMetaKeyExcluded            = "exclusion_reason"
 	auditMetaKeyPost                = "post"
 )
 
@@ -35,13 +38,23 @@ var (
 )
 
 type PostProcessor struct {
-	botID            string
-	auditLogEnabled  bool
-	excludedUsers    map[string]struct{}
-	excludedChannels map[string]struct{}
-	resultsCache     *moderationResultsCache
-	postsCh          chan *model.Post
-	done             chan struct{}
+	botID           string
+	auditLogEnabled bool
+
+	excludedUsers          map[string]struct{}
+	excludedChannels       map[string]struct{}
+	channelInfoCache       sync.Map // channel ID -> channelInfoCacheEntry
+	excludeDirectMessages  bool
+	excludePrivateChannels bool
+
+	resultsCache *moderationResultsCache
+	postsCh      chan *model.Post
+	done         chan struct{}
+}
+
+type channelInfoCacheEntry struct {
+	channelType  model.ChannelType
+	creationTime time.Time
 }
 
 func newPostProcessor(
@@ -50,15 +63,19 @@ func newPostProcessor(
 	moderationResultsCache *moderationResultsCache,
 	excludedUsers map[string]struct{},
 	excludedChannels map[string]struct{},
+	excludeDirectMessages bool,
+	excludePrivateChannels bool,
 ) (*PostProcessor, error) {
 	return &PostProcessor{
-		botID:            botID,
-		resultsCache:     moderationResultsCache,
-		auditLogEnabled:  auditLogEnabled,
-		excludedUsers:    excludedUsers,
-		excludedChannels: excludedChannels,
-		postsCh:          make(chan *model.Post, maxPostProcessingQueueSize),
-		done:             make(chan struct{}),
+		botID:                  botID,
+		resultsCache:           moderationResultsCache,
+		auditLogEnabled:        auditLogEnabled,
+		excludedUsers:          excludedUsers,
+		excludedChannels:       excludedChannels,
+		excludeDirectMessages:  excludeDirectMessages,
+		excludePrivateChannels: excludePrivateChannels,
+		postsCh:                make(chan *model.Post, maxPostProcessingQueueSize),
+		done:                   make(chan struct{}),
 	}, nil
 }
 
@@ -76,8 +93,8 @@ func (p *PostProcessor) start(api plugin.API) {
 			record := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
 			model.AddEventParameterAuditableToAuditRec(record, auditMetaKeyPost, post)
 
-			if !p.shouldModerateUser(post.UserId) ||
-				!p.shouldModerateChannel(post.ChannelId) {
+			if !p.shouldModerateUser(post.UserId, record) ||
+				!p.shouldModerateChannel(api, post.ChannelId, record) {
 				continue
 			}
 
@@ -141,23 +158,70 @@ func (p *PostProcessor) queuePost(api plugin.API, post *model.Post) {
 	}
 }
 
-func (p *PostProcessor) shouldModerateUser(userID string) bool {
+func (p *PostProcessor) shouldModerateUser(userID string, auditRecord *model.AuditRecord) bool {
 	if userID == p.botID {
+		auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_plugin_bot")
 		return false
 	}
+
 	if len(p.excludedUsers) == 0 {
 		return true
 	}
-	_, excluded := p.excludedUsers[userID]
-	return !excluded
+
+	if _, excluded := p.excludedUsers[userID]; excluded {
+		auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_user_list")
+		return false
+	}
+
+	return true
 }
 
-func (p *PostProcessor) shouldModerateChannel(channelID string) bool {
-	if len(p.excludedChannels) == 0 {
-		return true
+func (p *PostProcessor) shouldModerateChannel(api plugin.API, channelID string, auditRecord *model.AuditRecord) bool {
+	if len(p.excludedChannels) > 0 {
+		if _, excluded := p.excludedChannels[channelID]; excluded {
+			auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_channel_list")
+			return false
+		}
 	}
-	_, excluded := p.excludedChannels[channelID]
-	return !excluded
+
+	channelType := p.getChannelType(api, channelID)
+
+	if p.excludeDirectMessages &&
+		(channelType == model.ChannelTypeDirect ||
+			channelType == model.ChannelTypeGroup) {
+		auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_private_messages")
+		return false
+	}
+
+	if p.excludePrivateChannels && channelType == model.ChannelTypePrivate {
+		auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_private_channels")
+		return false
+	}
+
+	return true
+}
+
+func (p *PostProcessor) getChannelType(api plugin.API, channelID string) model.ChannelType {
+	var entry channelInfoCacheEntry
+	entryObj, ok := p.channelInfoCache.Load(channelID)
+	if ok {
+		entry = entryObj.(channelInfoCacheEntry)
+	}
+	if !ok || time.Since(entry.creationTime) > channelCacheTTL {
+		channel, err := api.GetChannel(channelID)
+		if err != nil {
+			api.LogError("Failed to get channel type for moderation check",
+				"channel_id", channelID, "err", err)
+			// Default to open channel if we can't determine the type
+			return model.ChannelTypeOpen
+		}
+		entry = channelInfoCacheEntry{
+			channelType:  channel.Type,
+			creationTime: time.Now(),
+		}
+		p.channelInfoCache.Store(channelID, entry)
+	}
+	return entry.channelType
 }
 
 func (p *PostProcessor) reportModerationEvent(api plugin.API, post *model.Post) error {
