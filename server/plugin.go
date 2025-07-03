@@ -6,7 +6,6 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
 	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation/azure"
-	"github.com/mattermost/mattermost-plugin-content-moderation/server/store/sqlstore"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
@@ -19,7 +18,6 @@ type Plugin struct {
 	configurationLock sync.RWMutex
 	configuration     *configuration
 
-	sqlStore             *sqlstore.SQLStore
 	postProcessor        *PostProcessor
 	moderationProcessor  *ModerationProcessor
 	excludedChannelStore ExcludedChannelsStore
@@ -34,14 +32,6 @@ func (p *Plugin) OnActivate() error {
 		p.API.LogError("Cannot initialize plugin", "err", err)
 		return err
 	}
-
-	client := pluginapi.NewClient(p.API, p.Driver)
-	SQLStore, err := sqlstore.New(client.Store, &client.Log)
-	if err != nil {
-		p.API.LogError("Cannot create SQLStore", "err", err)
-		return err
-	}
-	p.sqlStore = SQLStore
 
 	p.excludedChannelStore = newExcludedChannelsStore(p.API)
 	if err := p.registerSlashCommands(); err != nil {
