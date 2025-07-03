@@ -19,9 +19,10 @@ type Plugin struct {
 	configurationLock sync.RWMutex
 	configuration     *configuration
 
-	sqlStore            *sqlstore.SQLStore
-	postProcessor       *PostProcessor
-	moderationProcessor *ModerationProcessor
+	sqlStore             *sqlstore.SQLStore
+	postProcessor        *PostProcessor
+	moderationProcessor  *ModerationProcessor
+	excludedChannelStore ExcludedChannelsStore
 }
 
 func (p *Plugin) OnActivate() error {
@@ -41,6 +42,12 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 	p.sqlStore = SQLStore
+
+	p.excludedChannelStore = newExcludedChannelsStore(p.API)
+	if err := p.registerSlashCommands(); err != nil {
+		p.API.LogError("Failed to register slash commands", "err", err)
+		return err
+	}
 
 	config := p.getConfiguration()
 	if err := p.initialize(config); err != nil {
@@ -86,7 +93,6 @@ func (p *Plugin) initialize(config *configuration) error {
 	p.moderationProcessor.start(p.API)
 
 	excludedUsers := config.ExcludedUserSet()
-	excludedChannels := config.ExcludedChannelSet()
 
 	botID, err := p.API.EnsureBotUser(&model.Bot{Username: config.BotUsername})
 	if err != nil {
@@ -95,7 +101,7 @@ func (p *Plugin) initialize(config *configuration) error {
 
 	processor, err := newPostProcessor(
 		botID, config.AuditLoggingEnabled, moderationResultsCache,
-		excludedUsers, excludedChannels,
+		excludedUsers, p.excludedChannelStore,
 		config.ExcludeDirectMessages, config.ExcludePrivateChannels)
 	if err != nil {
 		return errors.Wrap(err, "failed to create post processor")
