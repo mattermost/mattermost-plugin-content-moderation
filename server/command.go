@@ -8,14 +8,23 @@ import (
 )
 
 func (p *Plugin) registerSlashCommands() error {
-	return p.API.RegisterCommand(&model.Command{
+	moderationAutoComplete := model.NewAutocompleteData("moderation", "", "Manage content moderation settings")
+	channelAutoComplete := model.NewAutocompleteData("channel", "", "Manage content moderation settings for channel")
+	channelAutoComplete.AddStaticListArgument("action", true, []model.AutocompleteListItem{
+		{Item: "disable", HelpText: "Disable moderation for channel"},
+		{Item: "enable", HelpText: "Enable moderation for channel"},
+		{Item: "status", HelpText: "Print moderation status of channel"},
+	})
+	moderationAutoComplete.AddCommand(channelAutoComplete)
+
+	command := model.Command{
 		Trigger:          "moderation",
 		DisplayName:      "Content Moderation",
 		Description:      "Manage content moderation settings",
 		AutoComplete:     true,
-		AutoCompleteDesc: "Exclude or include channels from content moderation",
-		AutoCompleteHint: "[exclude_channel|include_channel]",
-	})
+		AutocompleteData: moderationAutoComplete,
+	}
+	return p.API.RegisterCommand(&command)
 }
 
 // ExecuteCommand executes a given slash command
@@ -25,67 +34,93 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 		return &model.CommandResponse{}, nil
 	}
 
-	if len(parts) < 2 {
+	if len(parts) < 3 || parts[1] != "channel" {
 		return &model.CommandResponse{
-			Text: "Usage: `/moderation exclude_channel` or `/moderation include_channel`",
+			Text: "Error: invalid moderation command",
 		}, nil
 	}
 
-	switch parts[1] {
-	case "exclude_channel":
-		return p.executeExcludeCommand(args)
-	case "include_channel":
-		return p.executeIncludeCommand(args)
+	switch parts[2] {
+	case "disable":
+		return p.executeDisableCommand(args)
+	case "enable":
+		return p.executeEnableCommand(args)
+	case "status":
+		return p.executeStatusCommand(args)
 	default:
 		return &model.CommandResponse{
-			Text: "Usage: `/moderation exclude_channel` or `/moderation include_channel`",
+			Text: "Error: invalid moderation command",
 		}, nil
 	}
 }
 
-// executeExcludeCommand handles the exclude_channel subcommand
-func (p *Plugin) executeExcludeCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+// executeDisableCommand handles the disable_channel subcommand
+func (p *Plugin) executeDisableCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.hasChannelPermission(args.UserId, args.ChannelId) {
 		return &model.CommandResponse{
-			Text: "You must be a channel admin or system admin to exclude channels from moderation.",
+			Text: "You must be a channel admin or system admin to disable moderation for channels.",
 		}, nil
 	}
 
 	err := p.excludedChannelStore.SetExcluded(args.ChannelId, true)
 	if err != nil {
-		p.API.LogError("Failed to exclude channel", "channel_id", args.ChannelId, "user_id", args.UserId, "err", err)
+		p.API.LogError("Failed to disable channel", "channel_id", args.ChannelId, "user_id", args.UserId, "err", err)
 		return &model.CommandResponse{
-			Text: "Failed to exclude this channel from moderation.",
+			Text: "Failed to disable moderation for this channel.",
 		}, nil
 	}
 
 	return &model.CommandResponse{
-		Text: "This channel has been excluded from content moderation.",
+		Text: "Content moderation has been disabled for this channel.",
 	}, nil
 }
 
-// executeIncludeCommand handles the include_channel subcommand
-func (p *Plugin) executeIncludeCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeEnableCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.hasChannelPermission(args.UserId, args.ChannelId) {
 		return &model.CommandResponse{
-			Text: "You must be a channel admin or system admin to include channels in moderation.",
+			Text: "You must be a channel admin or system admin to enable moderation for channels.",
 		}, nil
 	}
 
 	err := p.excludedChannelStore.SetExcluded(args.ChannelId, false)
 	if err != nil {
-		p.API.LogError("Failed to include channel", "channel_id", args.ChannelId, "user_id", args.UserId, "err", err)
+		p.API.LogError("Failed to enable channel", "channel_id", args.ChannelId, "user_id", args.UserId, "err", err)
 		return &model.CommandResponse{
-			Text: "Failed to include this channel in moderation.",
+			Text: "Failed to enable moderation for this channel.",
 		}, nil
 	}
 
 	return &model.CommandResponse{
-		Text: "This channel has been included in content moderation.",
+		Text: "Content moderation has been enabled for this channel.",
 	}, nil
 }
 
-// hasChannelPermission checks if user has permission to manage channel moderation
+func (p *Plugin) executeStatusCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	if !p.hasChannelPermission(args.UserId, args.ChannelId) {
+		return &model.CommandResponse{
+			Text: "You must be a channel admin or system admin to see moderation status.",
+		}, nil
+	}
+
+	excluded, err := p.excludedChannelStore.IsExcluded(args.ChannelId)
+	if err != nil {
+		p.API.LogError("Failed to get channel status", "channel_id", args.ChannelId, "user_id", args.UserId, "err", err)
+		return &model.CommandResponse{
+			Text: "Failed to get moderation status of channel.",
+		}, nil
+	}
+
+	if excluded {
+		return &model.CommandResponse{
+			Text: "This channel is not actively moderated.",
+		}, nil
+	}
+
+	return &model.CommandResponse{
+		Text: "This channel is actively moderated.",
+	}, nil
+}
+
 func (p *Plugin) hasChannelPermission(userID, channelID string) bool {
 	if p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
 		return true
