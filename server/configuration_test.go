@@ -56,57 +56,6 @@ func TestConfiguration_ExcludedUserSet(t *testing.T) {
 	}
 }
 
-func TestConfiguration_ExcludedChannelSet(t *testing.T) {
-	tests := []struct {
-		name             string
-		excludedChannels string
-		expected         map[string]struct{}
-	}{
-		{
-			name:             "empty string",
-			excludedChannels: "",
-			expected:         map[string]struct{}{},
-		},
-		{
-			name:             "whitespace only",
-			excludedChannels: "   ",
-			expected:         map[string]struct{}{},
-		},
-		{
-			name:             "single channel",
-			excludedChannels: "channel1",
-			expected:         map[string]struct{}{"channel1": {}},
-		},
-		{
-			name:             "multiple channels",
-			excludedChannels: "channel1,channel2,channel3",
-			expected:         map[string]struct{}{"channel1": {}, "channel2": {}, "channel3": {}},
-		},
-		{
-			name:             "channels with spaces",
-			excludedChannels: " channel1 , channel2 , channel3 ",
-			expected:         map[string]struct{}{"channel1": {}, "channel2": {}, "channel3": {}},
-		},
-		{
-			name:             "channels with empty entries",
-			excludedChannels: "channel1,,channel2,   ,channel3",
-			expected:         map[string]struct{}{"channel1": {}, "channel2": {}, "channel3": {}},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &configuration{
-				ExcludedChannels: tt.excludedChannels,
-			}
-			result := c.ExcludedChannelSet()
-			if !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("ExcludedChannelSet() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestConfiguration_ThresholdValue(t *testing.T) {
 	tests := []struct {
 		name      string

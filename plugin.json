@@ -78,12 +78,6 @@
                 "help_text": "Users to exclude from content moderation. All others will be moderated."
             },
             {
-                "key": "excludedChannels",
-                "display_name": "Excluded Channels",
-                "type": "custom",
-                "help_text": "Channels to exclude from content moderation. Messages in these channels will not be moderated."
-            },
-            {
                 "key": "botUsername",
                 "display_name": "Bot Username",
                 "type": "text",

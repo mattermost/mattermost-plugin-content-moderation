@@ -42,7 +42,7 @@ type PostProcessor struct {
 	auditLogEnabled bool
 
 	excludedUsers          map[string]struct{}
-	excludedChannels       map[string]struct{}
+	excludedChannelStore   ExcludedChannelsStore
 	channelInfoCache       sync.Map // channel ID -> channelInfoCacheEntry
 	excludeDirectMessages  bool
 	excludePrivateChannels bool
@@ -62,7 +62,7 @@ func newPostProcessor(
 	auditLogEnabled bool,
 	moderationResultsCache *moderationResultsCache,
 	excludedUsers map[string]struct{},
-	excludedChannels map[string]struct{},
+	excludedChannelStore ExcludedChannelsStore,
 	excludeDirectMessages bool,
 	excludePrivateChannels bool,
 ) (*PostProcessor, error) {
@@ -71,7 +71,7 @@ func newPostProcessor(
 		resultsCache:           moderationResultsCache,
 		auditLogEnabled:        auditLogEnabled,
 		excludedUsers:          excludedUsers,
-		excludedChannels:       excludedChannels,
+		excludedChannelStore:   excludedChannelStore,
 		excludeDirectMessages:  excludeDirectMessages,
 		excludePrivateChannels: excludePrivateChannels,
 		postsCh:                make(chan *model.Post, maxPostProcessingQueueSize),
@@ -184,11 +184,11 @@ func (p *PostProcessor) shouldModerateUser(userID string, auditRecord *model.Aud
 }
 
 func (p *PostProcessor) shouldModerateChannel(api plugin.API, channelID string, auditRecord *model.AuditRecord) bool {
-	if len(p.excludedChannels) > 0 {
-		if _, excluded := p.excludedChannels[channelID]; excluded {
-			auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_channel_list")
-			return false
-		}
+	if excluded, err := p.excludedChannelStore.IsExcluded(channelID); err != nil {
+		api.LogError("Failed to check if channel is excluded", "channel_id", channelID, "err", err)
+	} else if excluded {
+		auditRecord.AddMeta(auditMetaKeyExcluded, "excluded_channel_list")
+		return false
 	}
 
 	channelType := p.getChannelType(api, channelID)
