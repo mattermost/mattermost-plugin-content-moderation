@@ -26,6 +26,7 @@ type configuration struct {
 	ExcludeDirectMessages  bool   `json:"excludeDirectMessages"`
 	ExcludePrivateChannels bool   `json:"excludePrivateChannels"`
 	BotUsername            string `json:"botUsername"`
+	AuditLoggingEnabled    bool   `json:"auditLoggingEnabled"`
 
 	Type string `json:"type"`
 
@@ -126,6 +127,7 @@ func (p *Plugin) setConfiguration(configuration *configuration) {
 		"excludeDirectMessages", configuration.ExcludeDirectMessages,
 		"excludePrivateChannels", configuration.ExcludePrivateChannels,
 		"moderationThreshold", configuration.Threshold,
+		"auditLoggingEnabled", configuration.AuditLoggingEnabled,
 		"botUsername", configuration.BotUsername)
 
 	p.configuration = configuration

@@ -8,6 +8,7 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -218,7 +219,8 @@ func TestShouldModerateUser(t *testing.T) {
 				excludedUsers: tt.excludedUsers,
 			}
 
-			result := processor.shouldModerateUser(tt.userID)
+			auditRecord := plugin.MakeAuditRecord("test", model.AuditStatusAttempt)
+			result := processor.shouldModerateUser(tt.userID, auditRecord)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -313,7 +315,9 @@ func TestShouldModerateChannel(t *testing.T) {
 				excludePrivateChannels: tt.excludePrivateChannels,
 			}
 
-			result := processor.shouldModerateChannel(mockAPI, tt.channelID)
+			auditRecord := plugin.MakeAuditRecord("test", model.AuditStatusAttempt)
+			result := processor.shouldModerateChannel(mockAPI, tt.channelID, auditRecord)
+
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -331,7 +335,8 @@ func TestModeratePost(t *testing.T) {
 		}
 
 		post := &model.Post{UserId: "user1", Message: "Test message"}
-		err := processor.moderatePost(mockAPI, post)
+		auditRecord := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
+		err := processor.moderatePost(mockAPI, post, auditRecord)
 
 		assert.NoError(t, err)
 		mockModerator.AssertNotCalled(t, "ModerateText")
@@ -350,7 +355,8 @@ func TestModeratePost(t *testing.T) {
 		}
 
 		post := &model.Post{UserId: "user1", ChannelId: "channel1", Message: "Test message"}
-		err := processor.moderatePost(mockAPI, post)
+		auditRecord := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
+		err := processor.moderatePost(mockAPI, post, auditRecord)
 
 		assert.NoError(t, err)
 		mockModerator.AssertNotCalled(t, "ModerateText")
@@ -372,7 +378,8 @@ func TestModeratePost(t *testing.T) {
 		}
 
 		post := &model.Post{UserId: "user1", Message: ""}
-		err := processor.moderatePost(mockAPI, post)
+		auditRecord := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
+		err := processor.moderatePost(mockAPI, post, auditRecord)
 
 		assert.NoError(t, err)
 		mockModerator.AssertNotCalled(t, "ModerateText")
@@ -399,7 +406,8 @@ func TestModeratePost(t *testing.T) {
 		}
 
 		post := &model.Post{UserId: "user1", Message: "Test message"}
-		err := processor.moderatePost(mockAPI, post)
+		auditRecord := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
+		err := processor.moderatePost(mockAPI, post, auditRecord)
 
 		assert.Equal(t, ErrModerationUnavailable, err)
 		mockModerator.AssertExpectations(t)
@@ -425,7 +433,8 @@ func TestModeratePost(t *testing.T) {
 		}
 
 		post := &model.Post{UserId: "user1", Message: "Test message"}
-		err := processor.moderatePost(mockAPI, post)
+		auditRecord := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
+		err := processor.moderatePost(mockAPI, post, auditRecord)
 
 		assert.NoError(t, err)
 		mockModerator.AssertExpectations(t)
@@ -457,7 +466,8 @@ func TestModeratePost(t *testing.T) {
 		}
 
 		post := &model.Post{UserId: "user1", Message: "Inappropriate content"}
-		err := processor.moderatePost(mockAPI, post)
+		auditRecord := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
+		err := processor.moderatePost(mockAPI, post, auditRecord)
 
 		assert.Equal(t, ErrModerationRejection, err) // Should return rejection error
 		mockModerator.AssertExpectations(t)
@@ -535,7 +545,7 @@ func TestNewPostProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor, err := newPostProcessor(tt.botID, tt.moderator, tt.thresholdValue, tt.excludedUsers, tt.excludedChannels, false, false)
+			processor, err := newPostProcessor(tt.botID, tt.moderator, false, tt.thresholdValue, tt.excludedUsers, tt.excludedChannels, false, false)
 
 			if tt.wantErr {
 				assert.Error(t, err)
