@@ -75,7 +75,8 @@ func (p *Plugin) initialize(config *configuration) error {
 	}
 
 	moderationResultsCache := newModerationResultsCache()
-	moderationProcessor, err := newModerationProcessor(moderationResultsCache, moderator, thresholdValue)
+	rateLimitPerMinute := config.RateLimitValue()
+	moderationProcessor, err := newModerationProcessor(moderationResultsCache, moderator, thresholdValue, rateLimitPerMinute)
 	if err != nil {
 		return errors.Wrap(err, "failed to create post moderation processor")
 	}
