@@ -98,7 +98,7 @@ func (p *Plugin) initialize(config *configuration) error {
 		excludedUsers, excludedChannels,
 		config.ExcludeDirectMessages, config.ExcludePrivateChannels)
 	if err != nil {
-		return errors.Wrap(err, "failed to create post post processor")
+		return errors.Wrap(err, "failed to create post processor")
 	}
 	p.postProcessor = processor
 	p.postProcessor.start(p.API)

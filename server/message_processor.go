@@ -59,14 +59,13 @@ func (p *ModerationProcessor) start(api plugin.API) {
 
 	go func() {
 		for {
-			var message string
 			select {
-			case message = <-p.messagesCh:
+			case message := <-p.messagesCh:
+				p.moderateMessage(message)
+				time.Sleep(moderationProcessingInterval)
 			case <-p.done:
 				return
 			}
-			p.moderateMessage(message)
-			time.Sleep(moderationProcessingInterval)
 		}
 	}()
 }

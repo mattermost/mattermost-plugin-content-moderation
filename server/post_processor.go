@@ -160,7 +160,7 @@ func (p *PostProcessor) queuePost(api plugin.API, post *model.Post) {
 	case p.postsCh <- post:
 		return
 	default:
-		api.LogError("Content moderation unable to analyze post: exceeded maximum post queue size")
+		api.LogError("Content moderation unable to analyze post: exceeded maximum post queue size", "post_id", post.Id)
 		return
 	}
 }
