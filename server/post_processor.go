@@ -6,29 +6,23 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/pkg/errors"
 )
 
-// The current Azure rate limit is 1000 posts per minute.
-// Using half of that to give us some wiggle room:
-// https://learn.microsoft.com/en-us/azure/ai-services/content-safety/faq
-const (
-	maxProcessingQueueSize = 10000
-	postsPerMinuteLimit    = 500
-	processingInterval     = 1 / postsPerMinuteLimit * time.Minute
-	channelCacheTTL        = 1 * time.Minute
-)
+const channelCacheTTL = 1 * time.Minute
 
-// Message templates for moderation notifications
 const (
 	channelNotificationTemplate = "_A post with potentially offensive content was flagged and removed._"
 	dmNotificationTemplate      = "_Your post with the following content was flagged and removed:_\n\n%s"
 )
 
-// Audit event constants
+const (
+	maxPostProcessingQueueSize = maxModerationProcessingQueueSize
+	waitForResultTimeout       = 1 * time.Minute
+)
+
 const (
 	auditEventTypeContentModeration = "contentModeration"
 	auditMetaKeyFlagged             = "flagged"
@@ -45,17 +39,17 @@ var (
 
 type PostProcessor struct {
 	botID           string
-	moderator       moderation.Moderator
 	auditLogEnabled bool
 
-	thresholdValue         int
 	excludedUsers          map[string]struct{}
 	excludedChannels       map[string]struct{}
 	channelInfoCache       sync.Map // channel ID -> channelInfoCacheEntry
 	excludeDirectMessages  bool
 	excludePrivateChannels bool
 
-	postsCh chan *model.Post
+	resultsCache *moderationResultsCache
+	postsCh      chan *model.Post
+	done         chan struct{}
 }
 
 type channelInfoCacheEntry struct {
@@ -65,125 +59,110 @@ type channelInfoCacheEntry struct {
 
 func newPostProcessor(
 	botID string,
-	moderator moderation.Moderator,
 	auditLogEnabled bool,
-	thresholdValue int,
+	moderationResultsCache *moderationResultsCache,
 	excludedUsers map[string]struct{},
 	excludedChannels map[string]struct{},
 	excludeDirectMessages bool,
 	excludePrivateChannels bool,
 ) (*PostProcessor, error) {
-	if moderator == nil {
-		return nil, ErrModerationUnavailable
-	}
 	return &PostProcessor{
 		botID:                  botID,
-		moderator:              moderator,
+		resultsCache:           moderationResultsCache,
 		auditLogEnabled:        auditLogEnabled,
-		thresholdValue:         thresholdValue,
 		excludedUsers:          excludedUsers,
 		excludedChannels:       excludedChannels,
 		excludeDirectMessages:  excludeDirectMessages,
 		excludePrivateChannels: excludePrivateChannels,
-		postsCh:                make(chan *model.Post, maxProcessingQueueSize),
+		postsCh:                make(chan *model.Post, maxPostProcessingQueueSize),
+		done:                   make(chan struct{}),
 	}, nil
 }
 
 func (p *PostProcessor) start(api plugin.API) {
-	go func() {
-		for {
-			post, ok := <-p.postsCh
-			if !ok {
-				return
-			}
+	go p.processPostsLoop(api)
+}
 
-			time.Sleep(processingInterval)
+func (p *PostProcessor) processPostsLoop(api plugin.API) {
+	for {
+		var post *model.Post
 
-			record := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
-			model.AddEventParameterAuditableToAuditRec(record, auditMetaKeyPost, post)
+		select {
+		case post = <-p.postsCh:
+		case <-p.done:
+			return
+		}
 
-			err := p.moderatePost(api, post, record)
-			if err == nil {
-				p.logAuditSuccess(api, record)
-				continue
-			}
+		record := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
+		model.AddEventParameterAuditableToAuditRec(record, auditMetaKeyPost, post)
 
-			if errors.Is(err, ErrModerationUnavailable) {
-				errMsg := "Content moderation error"
-				api.LogError(errMsg, "err", err, "post_id", post.Id, "user_id", post.UserId)
-				p.logAuditFail(api, record, errMsg, err)
-				continue
-			}
+		if !p.shouldModerateUser(post.UserId, record) ||
+			!p.shouldModerateChannel(api, post.ChannelId, record) {
+			continue
+		}
 
+		result := p.resultsCache.waitForResult(post.Message, waitForResultTimeout)
+		if result == nil {
+			errMsg := "Failed to complete content moderation"
+			api.LogError(errMsg, "post_id", post.Id, "err", context.DeadlineExceeded)
+			p.logAuditFail(api, record, errMsg, context.DeadlineExceeded)
+			continue
+		}
+
+		record.AddMeta(auditMetaKeyResult, result.result)
+
+		switch result.code {
+		case moderationResultProcessed:
+			record.AddMeta(auditMetaKeyFlagged, false)
+			p.logAuditSuccess(api, record)
+			continue
+		case moderationResultPending:
+			errMsg := "Failed to complete content moderation"
+			err := errors.New("moderation result from cache is still pending")
+			api.LogError(errMsg, "post_id", post.Id, "err", err)
+			p.logAuditFail(api, record, errMsg, err)
+			continue
+		case moderationResultFlagged:
+			record.AddMeta(auditMetaKeyFlagged, true)
 			if err := api.DeletePost(post.Id); err != nil {
 				errMsg := "Failed to delete post flagged by content moderation"
 				api.LogError(errMsg, "post_id", post.Id, "err", err)
 				p.logAuditFail(api, record, errMsg, err)
 				continue
 			}
-
 			if err := p.reportModerationEvent(api, post); err != nil {
 				errMsg := "Failed report content moderation event"
 				api.LogError(errMsg, "post_id", post.Id, "err", err)
 				p.logAuditFail(api, record, errMsg, err)
 				continue
 			}
-
 			p.logAuditSuccess(api, record)
+			continue
+		case moderationResultError:
+			errMsg := "Content moderation error"
+			api.LogError(errMsg, "err", result.err, "post_id", post.Id, "user_id", post.UserId)
+			p.logAuditFail(api, record, errMsg, result.err)
+			continue
 		}
-	}()
+	}
 }
 
 func (p *PostProcessor) stop() {
-	close(p.postsCh)
+	close(p.done)
 }
 
-func (p *PostProcessor) queuePostForProcessing(api plugin.API, post *model.Post) {
-	defer func() {
-		if r := recover(); r != nil {
-			api.LogDebug("Panic occurred while queueing post for processing", "post_id", post.Id, "panic", r)
-		}
-	}()
+func (p *PostProcessor) queuePost(api plugin.API, post *model.Post) {
+	if post.Message == "" {
+		return
+	}
 
 	select {
 	case p.postsCh <- post:
+		return
 	default:
 		api.LogError("Content moderation unable to analyze post: exceeded maximum post queue size", "post_id", post.Id)
+		return
 	}
-}
-
-func (p *PostProcessor) moderatePost(api plugin.API, post *model.Post, auditRecord *model.AuditRecord) error {
-	if post.Message == "" {
-		return nil
-	}
-
-	if !p.shouldModerateUser(post.UserId, auditRecord) {
-		return nil
-	}
-
-	if !p.shouldModerateChannel(api, post.ChannelId, auditRecord) {
-		return nil
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), moderationTimeout)
-	defer cancel()
-
-	result, err := p.moderator.ModerateText(ctx, post.Message)
-	if err != nil {
-		return ErrModerationUnavailable
-	}
-
-	auditRecord.AddMeta(auditMetaKeyThreshold, p.thresholdValue)
-	auditRecord.AddMeta(auditMetaKeyResult, result)
-
-	if p.resultSeverityAboveThreshold(result) {
-		auditRecord.AddMeta(auditMetaKeyFlagged, true)
-		p.logFlaggedResult(api, post.Id, result)
-		return ErrModerationRejection
-	}
-
-	auditRecord.AddMeta(auditMetaKeyFlagged, false)
-	return nil
 }
 
 func (p *PostProcessor) shouldModerateUser(userID string, auditRecord *model.AuditRecord) bool {
@@ -250,28 +229,6 @@ func (p *PostProcessor) getChannelType(api plugin.API, channelID string) model.C
 		p.channelInfoCache.Store(channelID, entry)
 	}
 	return entry.channelType
-}
-
-func (p *PostProcessor) resultSeverityAboveThreshold(result moderation.Result) bool {
-	for _, severity := range result {
-		if severity >= p.thresholdValue {
-			return true
-		}
-	}
-	return false
-}
-
-func (p *PostProcessor) logFlaggedResult(api plugin.API, postID string, result moderation.Result) {
-	keyPairs := []any{"post_id", postID, "severity_threshold", p.thresholdValue}
-
-	for category, severity := range result {
-		if severity >= p.thresholdValue {
-			keyPairs = append(keyPairs, fmt.Sprintf("computed_severity_%s", category))
-			keyPairs = append(keyPairs, severity)
-		}
-	}
-
-	api.LogInfo("Content was flagged by moderation", keyPairs...)
 }
 
 func (p *PostProcessor) reportModerationEvent(api plugin.API, post *model.Post) error {

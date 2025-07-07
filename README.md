@@ -87,6 +87,72 @@ Content was flagged by moderation post_id="abc123" severity_threshold=2 computed
 
 This shows which post was flagged, the configured threshold, and the computed severity scores for each category that exceeded the threshold. Future versions will include metrics visualization support for better monitoring and reporting.
 
+## Technical Architecture Diagram
+
+The plugin implements a dual-processor architecture with asynchronous content analysis and post-processing actions:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              MATTERMOST PLUGIN HOOKS                                │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│  MessageWillBePosted/Updated     │  MessageHasBeenPosted/Updated                    │
+│  Intercept messages before       │  Process messages after they                    │
+│  they are posted and queue       │  are posted and queue for                       │
+│  for content analysis            │  moderation actions                             │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                    │                                    │
+                    ▼                                    ▼
+┌─────────────────────────────────┐    ┌─────────────────────────────────────────────┐
+│        MODERATION PROCESSOR     │    │            POST PROCESSOR                   │
+│                                 │    │                                             │
+│  Analyzes message content       │    │  Applies moderation actions based          │
+│  using Azure AI Content Safety  │    │  on analysis results                       │
+│                                 │    │                                             │
+│  ┌─────────────────────────────┐│    │  ┌─────────────────────────────────────────┐│
+│  │     Message Queue           ││    │  │          Post Queue                     ││
+│  │                             ││    │  │                                         ││
+│  │  Processes messages with    ││    │  │  Filters excluded users and channels   ││
+│  │  rate limiting to respect   ││    │  │  before taking actions                 ││
+│  │  API limits                 ││    │  │                                         ││
+│  └─────────────────────────────┘│    │  └─────────────────────────────────────────┘│
+│                                 │    │                                             │
+│              │                  │    │                      │                      │
+│              ▼                  │    │                      ▼                      │
+│  ┌─────────────────────────────┐│    │  ┌─────────────────────────────────────────┐│
+│  │      Azure AI Content      ││    │  │       Wait for Results                  ││
+│  │       Safety API            ││    │  │                                         ││
+│  │                             ││    │  │  Waits for moderation analysis          ││
+│  │  Analyzes content across    ││    │  │  to complete before taking action       ││
+│  │  multiple categories and    ││    │  │                                         ││
+│  │  returns severity scores    ││    │  │  ┌─────────────────────────────────────┐││
+│  │                             ││    │  │  │        Action Execution             │││
+│  └─────────────────────────────┘│    │  │  │                                     │││
+│                                 │    │  │  │  Deletes flagged posts and sends   │││
+│                                 │    │  │  │  notifications to users             │││
+│                                 │    │  │  └─────────────────────────────────────┘││
+│                                 │    │  └─────────────────────────────────────────┘│
+└─────────────────────────────────┘    └─────────────────────────────────────────────┘
+                    │                                             ▲
+                    ▼                                             │
+┌─────────────────────────────────────────────────────────────────┴─────────────────┐
+│                          MODERATION RESULTS CACHE                                  │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│  Coordinates communication between processors and stores analysis results           │
+│                                                                                     │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │     PENDING     │  │   PROCESSED     │  │     FLAGGED     │  │     ERROR       │ │
+│  │                 │  │                 │  │                 │  │                 │ │
+│  │ Analysis        │  │ Content is      │  │ Content        │  │ Analysis        │ │
+│  │ in progress     │  │ safe            │  │ violates       │  │ failed          │ │
+│  │                 │  │                 │  │ policies       │  │                 │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+│                                                                                     │
+│  • Prevents duplicate analysis of identical content                                 │
+│  • Provides notification system for processors to coordinate                        │
+│  • Automatically cleans up expired results                                         │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
 ## Roadmap
 
 - [ ] Implement notification blocking for posts under moderation
