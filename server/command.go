@@ -7,6 +7,13 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin"
 )
 
+const (
+	auditEventTypeChannelModeration = "channelModeration"
+	auditMetaKeyChannelID           = "channel_id"
+	auditMetaKeyUserID              = "user_id"
+	auditMetaKeyAction              = "action"
+)
+
 func (p *Plugin) registerSlashCommands() error {
 	moderationAutoComplete := model.NewAutocompleteData("moderation", "", "Manage content moderation settings")
 	channelAutoComplete := model.NewAutocompleteData("channel", "", "Manage content moderation settings for channel")
@@ -56,6 +63,15 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 
 // executeDisableCommand handles the disable_channel subcommand
 func (p *Plugin) executeDisableCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	auditRecord := plugin.MakeAuditRecord(auditEventTypeChannelModeration, model.AuditStatusAttempt)
+	auditRecord.AddMeta(auditMetaKeyChannelID, args.ChannelId)
+	auditRecord.AddMeta(auditMetaKeyUserID, args.UserId)
+	auditRecord.AddMeta(auditMetaKeyAction, "disable")
+
+	if p.getConfiguration().AuditLoggingEnabled {
+		defer p.API.LogAuditRec(auditRecord)
+	}
+
 	if !p.hasChannelPermission(args.UserId, args.ChannelId) {
 		return &model.CommandResponse{
 			Text: "You must be a channel admin or system admin to disable moderation for channels.",
@@ -65,10 +81,16 @@ func (p *Plugin) executeDisableCommand(args *model.CommandArgs) (*model.CommandR
 	err := p.excludedChannelStore.SetExcluded(args.ChannelId, true)
 	if err != nil {
 		p.API.LogError("Failed to disable channel", "channel_id", args.ChannelId, "user_id", args.UserId, "err", err)
+		auditRecord.AddErrorDesc(err.Error())
+		auditRecord.Fail()
+
 		return &model.CommandResponse{
 			Text: "Failed to disable moderation for this channel.",
 		}, nil
 	}
+
+	p.API.LogInfo("Channel moderation disabled", "channel_id", args.ChannelId, "user_id", args.UserId)
+	auditRecord.Success()
 
 	return &model.CommandResponse{
 		Text: "Content moderation has been disabled for this channel.",
@@ -76,6 +98,15 @@ func (p *Plugin) executeDisableCommand(args *model.CommandArgs) (*model.CommandR
 }
 
 func (p *Plugin) executeEnableCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	auditRecord := plugin.MakeAuditRecord(auditEventTypeChannelModeration, model.AuditStatusAttempt)
+	auditRecord.AddMeta(auditMetaKeyChannelID, args.ChannelId)
+	auditRecord.AddMeta(auditMetaKeyUserID, args.UserId)
+	auditRecord.AddMeta(auditMetaKeyAction, "enable")
+
+	if p.getConfiguration().AuditLoggingEnabled {
+		defer p.API.LogAuditRec(auditRecord)
+	}
+
 	if !p.hasChannelPermission(args.UserId, args.ChannelId) {
 		return &model.CommandResponse{
 			Text: "You must be a channel admin or system admin to enable moderation for channels.",
@@ -85,10 +116,16 @@ func (p *Plugin) executeEnableCommand(args *model.CommandArgs) (*model.CommandRe
 	err := p.excludedChannelStore.SetExcluded(args.ChannelId, false)
 	if err != nil {
 		p.API.LogError("Failed to enable channel", "channel_id", args.ChannelId, "user_id", args.UserId, "err", err)
+		auditRecord.AddErrorDesc(err.Error())
+		auditRecord.Fail()
+
 		return &model.CommandResponse{
 			Text: "Failed to enable moderation for this channel.",
 		}, nil
 	}
+
+	p.API.LogInfo("Channel moderation enabled", "channel_id", args.ChannelId, "user_id", args.UserId)
+	auditRecord.Success()
 
 	return &model.CommandResponse{
 		Text: "Content moderation has been enabled for this channel.",
