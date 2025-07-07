@@ -84,7 +84,10 @@ func (p *Plugin) initialize(config *configuration) error {
 
 	excludedUsers := config.ExcludedUserSet()
 
-	botID, err := p.API.EnsureBotUser(&model.Bot{Username: config.BotUsername})
+	botID, err := p.API.EnsureBotUser(&model.Bot{
+		Username:    config.BotUsername,
+		DisplayName: config.BotDisplayName,
+	})
 	if err != nil {
 		return errors.Wrap(err, "could not initialize bot user")
 	}
