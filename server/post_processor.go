@@ -23,15 +23,6 @@ const (
 	waitForResultTimeout       = 1 * time.Minute
 )
 
-const (
-	auditEventTypeContentModeration = "contentModeration"
-	auditMetaKeyFlagged             = "flagged"
-	auditMetaKeyResult              = "result"
-	auditMetaKeyThreshold           = "threshold"
-	auditMetaKeyExcluded            = "exclusion_reason"
-	auditMetaKeyPost                = "post"
-)
-
 var (
 	ErrModerationRejection   = errors.New("potentially inappropriate content detected")
 	ErrModerationUnavailable = errors.New("moderation service is not available")
@@ -94,7 +85,7 @@ func (p *PostProcessor) processPostsLoop(api plugin.API) {
 		}
 
 		record := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
-		model.AddEventParameterAuditableToAuditRec(record, auditMetaKeyPost, post)
+		model.AddEventParameterAuditableToAuditRec(record, auditParamKeyPost, post)
 
 		if !p.shouldModerateUser(post.UserId, record) ||
 			!p.shouldModerateChannel(api, post.ChannelId, record) {
