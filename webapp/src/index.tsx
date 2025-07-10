@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {getPost} from 'mattermost-redux/selectors/entities/posts';
 import {getCurrentUser} from 'mattermost-redux/selectors/entities/users';
 
 import {client} from '@/client';

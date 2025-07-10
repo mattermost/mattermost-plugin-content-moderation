@@ -15,6 +15,10 @@ export interface PluginRegistry {
         action: (postId: string) => void,
         filter?: (postId: string) => boolean
     ): void;
+    registerChannelHeaderMenuAction(
+        text: string,
+        action: (channelId: string) => void
+    ): void;
 }
 
 export interface PluginManifest {
