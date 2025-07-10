@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -20,7 +21,8 @@ func (p *Plugin) registerSlashCommands() error {
 	channelAutoComplete.AddStaticListArgument("action", true, []model.AutocompleteListItem{
 		{Item: "disable", HelpText: "Disable moderation for channel"},
 		{Item: "enable", HelpText: "Enable moderation for channel"},
-		{Item: "status", HelpText: "Print moderation status of channel"},
+		{Item: "status", HelpText: "Print moderation status for this channel"},
+		{Item: "list", HelpText: "List all excluded channels you have permission to manage"},
 	})
 	moderationAutoComplete.AddCommand(channelAutoComplete)
 
@@ -54,6 +56,8 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executeEnableCommand(args)
 	case "status":
 		return p.executeStatusCommand(args)
+	case "list":
+		return p.executeListCommand(args)
 	default:
 		return &model.CommandResponse{
 			Text: "Error: invalid moderation command",
@@ -141,21 +145,49 @@ func (p *Plugin) executeStatusCommand(args *model.CommandArgs) (*model.CommandRe
 
 	excluded, err := p.excludedChannelStore.IsExcluded(args.ChannelId)
 	if err != nil {
-		p.API.LogError("Failed to get channel status", "channel_id", args.ChannelId, "user_id", args.UserId, "err", err)
+		p.API.LogError("Failed to get channel status",
+			"channel_id", args.ChannelId, "user_id", args.UserId, "err", err)
 		return &model.CommandResponse{
 			Text: "Failed to get moderation status of channel.",
 		}, nil
 	}
 
+	var statusMessage string
 	if excluded {
+		statusMessage = "This channel is not actively moderated."
+	} else {
+		statusMessage = "This channel is actively moderated."
+	}
+
+	return &model.CommandResponse{Text: statusMessage}, nil
+}
+
+func (p *Plugin) executeListCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	excludedChannels := p.excludedChannelStore.ListExcluded()
+
+	var filteredChannels []ExcludedChannelInfo
+	for _, channelInfo := range excludedChannels {
+		if !p.hasChannelPermission(args.UserId, channelInfo.ID) {
+			continue
+		}
+		filteredChannels = append(filteredChannels, channelInfo)
+	}
+
+	if len(filteredChannels) == 0 {
 		return &model.CommandResponse{
-			Text: "This channel is not actively moderated.",
+			Text: "There are no excluded channels that you have permission to manage.",
 		}, nil
 	}
 
-	return &model.CommandResponse{
-		Text: "This channel is actively moderated.",
-	}, nil
+	var channelNames []string
+	for _, channel := range filteredChannels {
+		channelNames = append(channelNames, "~"+channel.Name)
+	}
+
+	response := fmt.Sprintf("The following channels are excluded from moderation:\n%s",
+		strings.Join(channelNames, ", "))
+
+	return &model.CommandResponse{Text: response}, nil
 }
 
 func (p *Plugin) hasChannelPermission(userID, channelID string) bool {

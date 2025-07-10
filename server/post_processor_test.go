@@ -39,6 +39,19 @@ func (m *MockExcludedChannelsStore) SetExcluded(channelID string, excluded bool)
 	return nil
 }
 
+func (m *MockExcludedChannelsStore) ListExcluded() []ExcludedChannelInfo {
+	var result []ExcludedChannelInfo
+	for channelID, excluded := range m.excludedChannels {
+		if excluded {
+			result = append(result, ExcludedChannelInfo{
+				ID:   channelID,
+				Name: "test-channel-" + channelID,
+			})
+		}
+	}
+	return result
+}
+
 func TestPostProcessor_shouldModerateUser(t *testing.T) {
 	t.Run("should not moderate bot user", func(t *testing.T) {
 		processor := &PostProcessor{
