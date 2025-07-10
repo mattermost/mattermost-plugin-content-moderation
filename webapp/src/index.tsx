@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import ChannelSettings from '@/components/admin_settings/channel_settings';
 import UserSettings from '@/components/admin_settings/user_settings';
 import manifest from '@/manifest';
 import type {PluginRegistry} from '@/types/mattermost-webapp';
@@ -9,7 +8,6 @@ import type {PluginRegistry} from '@/types/mattermost-webapp';
 export default class Plugin {
     public async initialize(registry: PluginRegistry) {
         registry.registerAdminConsoleCustomSetting('excludedUsers', UserSettings, {showTitle: true});
-        registry.registerAdminConsoleCustomSetting('excludedChannels', ChannelSettings, {showTitle: true});
     }
 }
 

@@ -5,9 +5,6 @@ go 1.24.3
 toolchain go1.24.4
 
 require (
-	github.com/Masterminds/squirrel v1.5.4
-	github.com/gorilla/mux v1.8.1
-	github.com/jmoiron/sqlx v1.4.0
 	github.com/mattermost/mattermost/server/public v0.1.16-0.20250626003732-aaa62a40ae86
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.10.0
@@ -35,8 +32,6 @@ require (
 	github.com/hashicorp/go-plugin v1.6.3 // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
-	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
-	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/mattermost/go-i18n v1.11.1-0.20211013152124-5c415071e404 // indirect
 	github.com/mattermost/gosaml2 v0.9.0 // indirect

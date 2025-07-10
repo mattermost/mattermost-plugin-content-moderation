@@ -22,7 +22,6 @@ import (
 type configuration struct {
 	Enabled                bool   `json:"enabled"`
 	ExcludedUsers          string `json:"excludedUsers"`
-	ExcludedChannels       string `json:"excludedChannels"`
 	ExcludeDirectMessages  bool   `json:"excludeDirectMessages"`
 	ExcludePrivateChannels bool   `json:"excludePrivateChannels"`
 	BotUsername            string `json:"botUsername"`
@@ -42,20 +41,6 @@ func (c *configuration) ExcludedUserSet() map[string]struct{} {
 	}
 	for _, userID := range strings.Split(c.ExcludedUsers, ",") {
 		trimmedID := strings.TrimSpace(userID)
-		if trimmedID != "" {
-			excludedMap[trimmedID] = struct{}{}
-		}
-	}
-	return excludedMap
-}
-
-func (c *configuration) ExcludedChannelSet() map[string]struct{} {
-	excludedMap := make(map[string]struct{})
-	if strings.TrimSpace(c.ExcludedChannels) == "" {
-		return excludedMap
-	}
-	for _, channelID := range strings.Split(c.ExcludedChannels, ",") {
-		trimmedID := strings.TrimSpace(channelID)
 		if trimmedID != "" {
 			excludedMap[trimmedID] = struct{}{}
 		}
@@ -123,7 +108,6 @@ func (p *Plugin) setConfiguration(configuration *configuration) {
 	p.API.LogInfo("Moderation configuration changed",
 		"moderationEnabled", configuration.Enabled,
 		"excludedUsers", configuration.ExcludedUsers,
-		"excludedChannels", configuration.ExcludedChannels,
 		"excludeDirectMessages", configuration.ExcludeDirectMessages,
 		"excludePrivateChannels", configuration.ExcludePrivateChannels,
 		"moderationThreshold", configuration.Threshold,

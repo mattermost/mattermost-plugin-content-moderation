@@ -13,6 +13,45 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+var _ ExcludedChannelsStore = (*MockExcludedChannelsStore)(nil)
+
+type MockExcludedChannelsStore struct {
+	excludedChannels map[string]bool
+}
+
+func NewMockExcludedChannelsStore(excluded []string) *MockExcludedChannelsStore {
+	excludedMap := make(map[string]bool)
+	for _, channel := range excluded {
+		excludedMap[channel] = true
+	}
+	return &MockExcludedChannelsStore{
+		excludedChannels: excludedMap,
+	}
+}
+
+func (m *MockExcludedChannelsStore) IsExcluded(channelID string) (bool, error) {
+	excluded, defined := m.excludedChannels[channelID]
+	return defined && excluded, nil
+}
+
+func (m *MockExcludedChannelsStore) SetExcluded(channelID string, excluded bool) error {
+	m.excludedChannels[channelID] = excluded
+	return nil
+}
+
+func (m *MockExcludedChannelsStore) ListExcluded() []ExcludedChannelInfo {
+	var result []ExcludedChannelInfo
+	for channelID, excluded := range m.excludedChannels {
+		if excluded {
+			result = append(result, ExcludedChannelInfo{
+				ID:   channelID,
+				Name: "test-channel-" + channelID,
+			})
+		}
+	}
+	return result
+}
+
 func TestPostProcessor_shouldModerateUser(t *testing.T) {
 	t.Run("should not moderate bot user", func(t *testing.T) {
 		processor := &PostProcessor{
@@ -70,11 +109,9 @@ func TestPostProcessor_shouldModerateUser(t *testing.T) {
 
 func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 	t.Run("should not moderate excluded channel", func(t *testing.T) {
+		excludedStore := NewMockExcludedChannelsStore([]string{"channel123", "channel456"})
 		processor := &PostProcessor{
-			excludedChannels: map[string]struct{}{
-				"channel123": {},
-				"channel456": {},
-			},
+			excludedChannelStore: excludedStore,
 		}
 
 		api := &plugintest.API{}
@@ -85,8 +122,9 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 	})
 
 	t.Run("should not moderate direct messages when excluded", func(t *testing.T) {
+		excludedStore := NewMockExcludedChannelsStore([]string{})
 		processor := &PostProcessor{
-			excludedChannels:      map[string]struct{}{},
+			excludedChannelStore:  excludedStore,
 			excludeDirectMessages: true,
 		}
 
@@ -105,7 +143,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 
 	t.Run("should not moderate group messages when direct messages excluded", func(t *testing.T) {
 		processor := &PostProcessor{
-			excludedChannels:      map[string]struct{}{},
+			excludedChannelStore:  NewMockExcludedChannelsStore([]string{}),
 			excludeDirectMessages: true,
 		}
 
@@ -124,7 +162,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 
 	t.Run("should not moderate private channels when excluded", func(t *testing.T) {
 		processor := &PostProcessor{
-			excludedChannels:       map[string]struct{}{},
+			excludedChannelStore:   NewMockExcludedChannelsStore([]string{}),
 			excludePrivateChannels: true,
 		}
 
@@ -143,7 +181,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 
 	t.Run("should moderate open channels", func(t *testing.T) {
 		processor := &PostProcessor{
-			excludedChannels:       map[string]struct{}{},
+			excludedChannelStore:   NewMockExcludedChannelsStore([]string{}),
 			excludeDirectMessages:  false,
 			excludePrivateChannels: false,
 		}
@@ -163,7 +201,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 
 	t.Run("should moderate direct messages when not excluded", func(t *testing.T) {
 		processor := &PostProcessor{
-			excludedChannels:      map[string]struct{}{},
+			excludedChannelStore:  NewMockExcludedChannelsStore([]string{}),
 			excludeDirectMessages: false,
 		}
 
@@ -182,7 +220,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 
 	t.Run("should moderate private channels when not excluded", func(t *testing.T) {
 		processor := &PostProcessor{
-			excludedChannels:       map[string]struct{}{},
+			excludedChannelStore:   NewMockExcludedChannelsStore([]string{}),
 			excludePrivateChannels: false,
 		}
 
@@ -201,7 +239,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 
 	t.Run("should handle channel fetch error gracefully", func(t *testing.T) {
 		processor := &PostProcessor{
-			excludedChannels: map[string]struct{}{},
+			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
 		}
 
 		api := &plugintest.API{}
@@ -243,12 +281,12 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 	t.Run("skips moderation when user should not be moderated", func(t *testing.T) {
 		cache := newModerationResultsCache()
 		processor := &PostProcessor{
-			botID:            "bot123",
-			excludedUsers:    map[string]struct{}{"user456": {}},
-			excludedChannels: map[string]struct{}{},
-			resultsCache:     cache,
-			postsCh:          make(chan *model.Post, 1),
-			done:             make(chan struct{}),
+			botID:                "bot123",
+			excludedUsers:        map[string]struct{}{"user456": {}},
+			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
+			resultsCache:         cache,
+			postsCh:              make(chan *model.Post, 1),
+			done:                 make(chan struct{}),
 		}
 
 		api := &plugintest.API{}
@@ -283,12 +321,12 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 	t.Run("skips moderation when channel should not be moderated", func(t *testing.T) {
 		cache := newModerationResultsCache()
 		processor := &PostProcessor{
-			botID:            "bot123",
-			excludedUsers:    map[string]struct{}{},
-			excludedChannels: map[string]struct{}{"channel123": {}},
-			resultsCache:     cache,
-			postsCh:          make(chan *model.Post, 1),
-			done:             make(chan struct{}),
+			botID:                "bot123",
+			excludedUsers:        map[string]struct{}{},
+			excludedChannelStore: NewMockExcludedChannelsStore([]string{"channel123"}),
+			resultsCache:         cache,
+			postsCh:              make(chan *model.Post, 1),
+			done:                 make(chan struct{}),
 		}
 
 		api := &plugintest.API{}
@@ -324,13 +362,13 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 	t.Run("handles processed moderation result", func(t *testing.T) {
 		cache := newModerationResultsCache()
 		processor := &PostProcessor{
-			botID:            "bot123",
-			excludedUsers:    map[string]struct{}{},
-			excludedChannels: map[string]struct{}{},
-			resultsCache:     cache,
-			postsCh:          make(chan *model.Post, 1),
-			done:             make(chan struct{}),
-			auditLogEnabled:  false,
+			botID:                "bot123",
+			excludedUsers:        map[string]struct{}{},
+			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
+			resultsCache:         cache,
+			postsCh:              make(chan *model.Post, 1),
+			done:                 make(chan struct{}),
+			auditLogEnabled:      false,
 		}
 
 		api := &plugintest.API{}
@@ -372,13 +410,13 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 	t.Run("handles flagged content and deletes post", func(t *testing.T) {
 		cache := newModerationResultsCache()
 		processor := &PostProcessor{
-			botID:            "bot123",
-			excludedUsers:    map[string]struct{}{},
-			excludedChannels: map[string]struct{}{},
-			resultsCache:     cache,
-			postsCh:          make(chan *model.Post, 1),
-			done:             make(chan struct{}),
-			auditLogEnabled:  false,
+			botID:                "bot123",
+			excludedUsers:        map[string]struct{}{},
+			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
+			resultsCache:         cache,
+			postsCh:              make(chan *model.Post, 1),
+			done:                 make(chan struct{}),
+			auditLogEnabled:      false,
 		}
 
 		api := &plugintest.API{}
@@ -430,13 +468,13 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 	t.Run("handles moderation error", func(t *testing.T) {
 		cache := newModerationResultsCache()
 		processor := &PostProcessor{
-			botID:            "bot123",
-			excludedUsers:    map[string]struct{}{},
-			excludedChannels: map[string]struct{}{},
-			resultsCache:     cache,
-			postsCh:          make(chan *model.Post, 1),
-			done:             make(chan struct{}),
-			auditLogEnabled:  false,
+			botID:                "bot123",
+			excludedUsers:        map[string]struct{}{},
+			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
+			resultsCache:         cache,
+			postsCh:              make(chan *model.Post, 1),
+			done:                 make(chan struct{}),
+			auditLogEnabled:      false,
 		}
 
 		api := &plugintest.API{}
