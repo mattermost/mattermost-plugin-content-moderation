@@ -26,6 +26,7 @@ type configuration struct {
 	ExcludePrivateChannels bool   `json:"excludePrivateChannels"`
 	BotUsername            string `json:"botUsername"`
 	AuditLoggingEnabled    bool   `json:"auditLoggingEnabled"`
+	RateLimitPerMinute     int    `json:"rateLimitPerMinute"`
 
 	Type string `json:"type"`
 
@@ -58,6 +59,14 @@ func (c *configuration) ThresholdValue() (int, error) {
 		return 0, errors.Wrapf(err, "could not parse threshold value: '%s'", c.Threshold)
 	}
 	return val, nil
+}
+
+// RateLimitValue returns the rate limit per minute as an integer
+func (c *configuration) RateLimitValue() int {
+	if c.RateLimitPerMinute <= 0 {
+		return 500 // Default rate limit
+	}
+	return c.RateLimitPerMinute
 }
 
 // Clone shallow copies the configuration. Your implementation may require a deep copy if
@@ -112,7 +121,8 @@ func (p *Plugin) setConfiguration(configuration *configuration) {
 		"excludePrivateChannels", configuration.ExcludePrivateChannels,
 		"moderationThreshold", configuration.Threshold,
 		"auditLoggingEnabled", configuration.AuditLoggingEnabled,
-		"botUsername", configuration.BotUsername)
+		"botUsername", configuration.BotUsername,
+		"rateLimitPerMinute", configuration.RateLimitPerMinute)
 
 	p.configuration = configuration
 }

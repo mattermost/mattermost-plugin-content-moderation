@@ -112,6 +112,13 @@
                 "type": "bool",
                 "help_text": "When true, content moderation actions will be logged to the audit log for compliance tracking. Note: This setting has no effect unless audit logging is configured at the server level.",
                 "default": true
+            },
+            {
+                "key": "rateLimitPerMinute",
+                "display_name": "Rate Limit (requests per minute)",
+                "type": "number",
+                "help_text": "Maximum number of moderation API requests per minute. Default is 500 for Azure AI Content Safety.",
+                "default": 500
             }
         ]
     }
