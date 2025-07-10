@@ -16,36 +16,26 @@ export default class Plugin {
         this.store = store;
         registry.registerAdminConsoleCustomSetting('excludedUsers', UserSettings, {showTitle: true});
 
-        registry.registerPostDropdownMenuAction(
+        registry.registerChannelHeaderMenuAction(
             'Enable Channel Moderation',
             this.handleEnableModeration,
         );
 
-        registry.registerPostDropdownMenuAction(
+        registry.registerChannelHeaderMenuAction(
             'Disable Channel Moderation',
             this.handleDisableModeration,
         );
     }
 
-    private manageChannelModeration = async (postId: string, enable: boolean) => {
+    private manageChannelModeration = async (channelId: string, enable: boolean) => {
         try {
-            const state = this.store.getState();
-            const post = getPost(state, postId);
-
-            if (!post) {
-                // eslint-disable-next-line no-console
-                console.error('Post not found in store:', postId);
-                return;
-            }
-
-            const channelId = post.channel_id;
-
             if (enable) {
                 await client.enableChannelModeration(channelId);
             } else {
                 await client.disableChannelModeration(channelId);
             }
 
+            const state = this.store.getState();
             const currentUser = getCurrentUser(state);
             if (currentUser) {
                 const action = enable ? 'enabled' : 'disabled';
@@ -58,12 +48,9 @@ export default class Plugin {
 
             try {
                 const state = this.store.getState();
-                const post = getPost(state, postId);
-                if (post) {
-                    const currentUser = getCurrentUser(state);
-                    if (currentUser) {
-                        await client.createEphemeralPost(post.channel_id, `Failed to ${action} moderation for this channel.`, currentUser.id);
-                    }
+                const currentUser = getCurrentUser(state);
+                if (currentUser) {
+                    await client.createEphemeralPost(channelId, `Failed to ${action} moderation for this channel.`, currentUser.id);
                 }
             } catch (ephemeralError) {
                 // eslint-disable-next-line no-console
@@ -72,12 +59,12 @@ export default class Plugin {
         }
     };
 
-    private handleEnableModeration = async (postId: string) => {
-        await this.manageChannelModeration(postId, true);
+    private handleEnableModeration = async (channelId: string) => {
+        await this.manageChannelModeration(channelId, true);
     };
 
-    private handleDisableModeration = async (postId: string) => {
-        await this.manageChannelModeration(postId, false);
+    private handleDisableModeration = async (channelId: string) => {
+        await this.manageChannelModeration(channelId, false);
     };
 }
 
