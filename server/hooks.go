@@ -41,10 +41,10 @@ func (p *Plugin) EmailNotificationWillBeSent(emailNotification *model.EmailNotif
 		return nil, ""
 	}
 
-	post, appErr := p.API.GetPost(emailNotification.PostId)
-	if appErr != nil {
+	post, err := p.postProcessor.postCache.getPost(p.API, emailNotification.PostId)
+	if err != nil {
 		p.API.LogError("Cannot retrieve post before sending email notification",
-			"post_id", emailNotification.PostId, "err", appErr)
+			"post_id", emailNotification.PostId, "err", err)
 		return nil, ""
 	}
 
