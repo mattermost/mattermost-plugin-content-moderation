@@ -104,9 +104,10 @@ func (p *Plugin) initialize(config *configuration) error {
 	p.moderationProcessor = moderationProcessor
 	p.moderationProcessor.start(p.API)
 
+	postCache := newPostCache()
 	processor, err := newPostProcessor(
 		pluginBotID, config.AuditLoggingEnabled, moderationResultsCache,
-		excludedUsers, p.excludedChannelStore,
+		postCache, excludedUsers, p.excludedChannelStore,
 		config.ExcludeDirectMessages, config.ExcludePrivateChannels)
 	if err != nil {
 		return errors.Wrap(err, "failed to create post processor")

@@ -38,9 +38,11 @@ type PostProcessor struct {
 	excludeDirectMessages  bool
 	excludePrivateChannels bool
 
-	resultsCache *moderationResultsCache
-	postsCh      chan *model.Post
-	done         chan struct{}
+	resultsCache  *moderationResultsCache
+	postCache     *postCache
+	postsCh       chan *model.Post
+	done          chan struct{}
+	cleanupTicker *time.Ticker
 }
 
 type channelInfoCacheEntry struct {
@@ -52,6 +54,7 @@ func newPostProcessor(
 	botID string,
 	auditLogEnabled bool,
 	moderationResultsCache *moderationResultsCache,
+	postCache *postCache,
 	excludedUsers map[string]struct{},
 	excludedChannelStore ExcludedChannelsStore,
 	excludeDirectMessages bool,
@@ -61,16 +64,29 @@ func newPostProcessor(
 		botID:                  botID,
 		resultsCache:           moderationResultsCache,
 		auditLogEnabled:        auditLogEnabled,
+		postCache:              postCache,
 		excludedUsers:          excludedUsers,
 		excludedChannelStore:   excludedChannelStore,
 		excludeDirectMessages:  excludeDirectMessages,
 		excludePrivateChannels: excludePrivateChannels,
 		postsCh:                make(chan *model.Post, maxPostProcessingQueueSize),
 		done:                   make(chan struct{}),
+		cleanupTicker:          time.NewTicker(5 * time.Minute),
 	}, nil
 }
 
 func (p *PostProcessor) start(api plugin.API) {
+	go func() {
+		for {
+			select {
+			case <-p.cleanupTicker.C:
+				p.postCache.cleanup(false)
+			case <-p.done:
+				return
+			}
+		}
+	}()
+
 	go p.processPostsLoop(api)
 }
 
@@ -83,6 +99,8 @@ func (p *PostProcessor) processPostsLoop(api plugin.API) {
 		case <-p.done:
 			return
 		}
+
+		p.postCache.addPost(post)
 
 		record := plugin.MakeAuditRecord(auditEventTypeContentModeration, model.AuditStatusAttempt)
 		model.AddEventParameterAuditableToAuditRec(record, auditParamKeyPost, post)
@@ -139,6 +157,10 @@ func (p *PostProcessor) processPostsLoop(api plugin.API) {
 }
 
 func (p *PostProcessor) stop() {
+	if p.cleanupTicker != nil {
+		p.cleanupTicker.Stop()
+		p.cleanupTicker = nil
+	}
 	close(p.done)
 }
 
