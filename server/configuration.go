@@ -25,6 +25,7 @@ type configuration struct {
 	ExcludeDirectMessages  bool   `json:"excludeDirectMessages"`
 	ExcludePrivateChannels bool   `json:"excludePrivateChannels"`
 	BotUsername            string `json:"botUsername"`
+	BotDisplayName         string `json:"botDisplayName"`
 	AuditLoggingEnabled    bool   `json:"auditLoggingEnabled"`
 	RateLimitPerMinute     int    `json:"rateLimitPerMinute"`
 
@@ -122,8 +123,8 @@ func (p *Plugin) setConfiguration(configuration *configuration) {
 		"moderationThreshold", configuration.Threshold,
 		"auditLoggingEnabled", configuration.AuditLoggingEnabled,
 		"botUsername", configuration.BotUsername,
+		"botDisplayName", configuration.BotDisplayName,
 		"rateLimitPerMinute", configuration.RateLimitPerMinute)
-
 	p.configuration = configuration
 }
 

@@ -82,8 +82,16 @@
                 "display_name": "Bot Username",
                 "type": "text",
                 "help_text": "The username that will be displayed for moderation notifications.",
-                "placeholder": "moderator",
-                "default": "moderator"
+                "placeholder": "content-moderation-bot",
+                "default": "content-moderation-bot"
+            },
+            {
+                "key": "botDisplayName",
+                "display_name": "Bot Display Name",
+                "type": "text",
+                "help_text": "The display name that will be shown for the moderation bot.",
+                "placeholder": "Content Moderation Bot",
+                "default": "Content Moderation Bot"
             },
             {
                 "key": "azure_threshold",
