@@ -6,7 +6,6 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
 	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation/azure"
-	"github.com/mattermost/mattermost-plugin-content-moderation/server/store/sqlstore"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
@@ -19,9 +18,9 @@ type Plugin struct {
 	configurationLock sync.RWMutex
 	configuration     *configuration
 
-	sqlStore            *sqlstore.SQLStore
-	postProcessor       *PostProcessor
-	moderationProcessor *ModerationProcessor
+	postProcessor        *PostProcessor
+	moderationProcessor  *ModerationProcessor
+	excludedChannelStore ExcludedChannelsStore
 }
 
 func (p *Plugin) OnActivate() error {
@@ -34,13 +33,17 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
-	client := pluginapi.NewClient(p.API, p.Driver)
-	SQLStore, err := sqlstore.New(client.Store, &client.Log)
+	var err error
+	p.excludedChannelStore, err = newExcludedChannelsStore(p.API)
 	if err != nil {
-		p.API.LogError("Cannot create SQLStore", "err", err)
+		p.API.LogError("Failed to create excluded channel store", "err", err)
 		return err
 	}
-	p.sqlStore = SQLStore
+
+	if err := p.registerSlashCommands(); err != nil {
+		p.API.LogError("Failed to register slash commands", "err", err)
+		return err
+	}
 
 	config := p.getConfiguration()
 	if err := p.initialize(config); err != nil {
@@ -86,7 +89,6 @@ func (p *Plugin) initialize(config *configuration) error {
 	p.moderationProcessor.start(p.API)
 
 	excludedUsers := config.ExcludedUserSet()
-	excludedChannels := config.ExcludedChannelSet()
 
 	botID, err := p.API.EnsureBotUser(&model.Bot{Username: config.BotUsername})
 	if err != nil {
@@ -95,7 +97,7 @@ func (p *Plugin) initialize(config *configuration) error {
 
 	processor, err := newPostProcessor(
 		botID, config.AuditLoggingEnabled, moderationResultsCache,
-		excludedUsers, excludedChannels,
+		excludedUsers, p.excludedChannelStore,
 		config.ExcludeDirectMessages, config.ExcludePrivateChannels)
 	if err != nil {
 		return errors.Wrap(err, "failed to create post processor")
