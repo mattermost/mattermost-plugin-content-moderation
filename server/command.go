@@ -8,13 +8,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin"
 )
 
-const (
-	auditEventTypeChannelModeration = "channelModeration"
-	auditMetaKeyChannelID           = "channel_id"
-	auditMetaKeyUserID              = "user_id"
-	auditMetaKeyAction              = "action"
-)
-
 func (p *Plugin) registerSlashCommands() error {
 	moderationAutoComplete := model.NewAutocompleteData("moderation", "", "Manage content moderation settings")
 	channelAutoComplete := model.NewAutocompleteData("channel", "", "Manage content moderation settings for channel")
@@ -67,7 +60,7 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 
 // executeDisableCommand handles the disable_channel subcommand
 func (p *Plugin) executeDisableCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	auditRecord := plugin.MakeAuditRecord(auditEventTypeChannelModeration, model.AuditStatusAttempt)
+	auditRecord := plugin.MakeAuditRecord(auditEventTypeManageChannelModeration, model.AuditStatusAttempt)
 	auditRecord.AddMeta(auditMetaKeyChannelID, args.ChannelId)
 	auditRecord.AddMeta(auditMetaKeyUserID, args.UserId)
 	auditRecord.AddMeta(auditMetaKeyAction, "disable")
@@ -102,7 +95,7 @@ func (p *Plugin) executeDisableCommand(args *model.CommandArgs) (*model.CommandR
 }
 
 func (p *Plugin) executeEnableCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	auditRecord := plugin.MakeAuditRecord(auditEventTypeChannelModeration, model.AuditStatusAttempt)
+	auditRecord := plugin.MakeAuditRecord(auditEventTypeManageChannelModeration, model.AuditStatusAttempt)
 	auditRecord.AddMeta(auditMetaKeyChannelID, args.ChannelId)
 	auditRecord.AddMeta(auditMetaKeyUserID, args.UserId)
 	auditRecord.AddMeta(auditMetaKeyAction, "enable")
