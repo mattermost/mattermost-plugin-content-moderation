@@ -14,8 +14,6 @@ import (
 const (
 	moderationAPITimeout             = 15 * time.Second
 	maxModerationProcessingQueueSize = 10000
-	moderationsPerMinuteLimit        = 500
-	moderationProcessingInterval     = time.Duration(float64(time.Minute) / moderationsPerMinuteLimit)
 )
 
 type ModerationProcessor struct {
@@ -25,16 +23,20 @@ type ModerationProcessor struct {
 	messagesCh             chan string
 	done                   chan struct{}
 	cleanupTicker          *time.Ticker
+	rateLimitPerMinute     int
+	processingInterval     time.Duration
 }
 
 func newModerationProcessor(
 	moderationResultsCache *moderationResultsCache,
 	moderator moderation.Moderator,
 	thresholdValue int,
+	rateLimitPerMinute int,
 ) (*ModerationProcessor, error) {
 	if moderator == nil {
 		return nil, ErrModerationUnavailable
 	}
+	processingInterval := time.Duration(float64(time.Minute) / float64(rateLimitPerMinute))
 	return &ModerationProcessor{
 		moderator:              moderator,
 		thresholdValue:         thresholdValue,
@@ -42,6 +44,8 @@ func newModerationProcessor(
 		messagesCh:             make(chan string, maxModerationProcessingQueueSize),
 		done:                   make(chan struct{}),
 		cleanupTicker:          time.NewTicker(5 * time.Minute),
+		rateLimitPerMinute:     rateLimitPerMinute,
+		processingInterval:     processingInterval,
 	}, nil
 }
 
@@ -62,7 +66,7 @@ func (p *ModerationProcessor) start(api plugin.API) {
 			select {
 			case message := <-p.messagesCh:
 				p.moderateMessage(message)
-				time.Sleep(moderationProcessingInterval)
+				time.Sleep(p.processingInterval)
 			case <-p.done:
 				return
 			}
