@@ -33,7 +33,13 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
-	p.excludedChannelStore = newExcludedChannelsStore(p.API)
+	var err error
+	p.excludedChannelStore, err = newExcludedChannelsStore(p.API)
+	if err != nil {
+		p.API.LogError("Failed to create excluded channel store", "err", err)
+		return err
+	}
+
 	if err := p.registerSlashCommands(); err != nil {
 		p.API.LogError("Failed to register slash commands", "err", err)
 		return err
@@ -75,7 +81,8 @@ func (p *Plugin) initialize(config *configuration) error {
 	}
 
 	moderationResultsCache := newModerationResultsCache()
-	moderationProcessor, err := newModerationProcessor(moderationResultsCache, moderator, thresholdValue)
+	rateLimitPerMinute := config.RateLimitValue()
+	moderationProcessor, err := newModerationProcessor(moderationResultsCache, moderator, thresholdValue, rateLimitPerMinute)
 	if err != nil {
 		return errors.Wrap(err, "failed to create post moderation processor")
 	}
