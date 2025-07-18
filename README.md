@@ -1,6 +1,6 @@
 # Mattermost Content Moderation Plugin
 
-This plugin provides content moderation capabilities for Mattermost using Azure AI Content Safety APIs.
+This plugin provides content moderation capabilities for Mattermost using Azure AI Content Safety APIs or the Mattermost Agents Plugin.
 
 This plugin requires an active enterprise license of Mattermost.
 
@@ -18,7 +18,11 @@ Key features:
 1. Download the latest release from the [releases page](https://github.com/mattermost/mattermost-plugin-content-moderation/releases)
 2. Upload the plugin to your Mattermost instance via System Console > Plugin Management
 3. Enable the plugin
-4. Configure the plugin with your Azure AI Content Safety API key and settings
+4. Configure the plugin with your moderation backend and settings
+
+## Agents Plugin Setup
+
+To use the Agents Plugin as your moderation backend, install and configure the Mattermost Agents Plugin with an agent that has "Enable Tools" disabled and is accessible to all users. We recommend using Mistral as the LLM model for content moderation tasks.
 
 ## Configuration
 
@@ -27,17 +31,20 @@ Configuration options:
 | Setting | Description |
 |---------|-------------|
 | Enabled | Enable/disable content moderation |
-| Type | Moderation provider type (currently only "azure" is supported) |
-| Azure Endpoint | Azure API endpoint |
-| Azure API Key | Azure API key (kept secure) |
+| Type | Moderation provider type ("azure" or "agents") |
+| Azure Endpoint | Azure API endpoint (Azure backend only) |
+| Azure API Key | Azure API key (kept secure, Azure backend only) |
+| Agents System Prompt | Custom system prompt for LLM moderation (Agents backend only) |
+| Agents Bot Username | The username of the specific agent to use for content moderation. Leave empty to use the default agent (Agents backend only) |
 | Exclude Direct/Group Messages | When enabled, direct messages and group messages will not be moderated |
 | Exclude Private Channels | When enabled, private channels will not be moderated |
 | Excluded Users | User IDs to exclude from content moderation. All other users will be moderated |
 | Excluded Channels | Channel IDs to exclude from content moderation. Messages in these channels will not be moderated |
 | Bot Username | The username displayed for moderation notifications |
-| Azure Threshold | Single severity threshold applied to all content categories |
+| Azure Threshold | Single severity threshold applied to all content categories (Azure backend only) |
+| Agents Threshold | Single severity threshold applied to all content categories (Agents backend only) |
 
-The Azure AI Content Safety API uses severity levels from 0-6:
+Both backends use severity levels from 0-6:
 - 0: Safe (always allowed)
 - 2: Low severity (mild)
 - 4: Medium severity (moderate)
@@ -51,7 +58,7 @@ This repository is licensed under the [Mattermost Source Available License](LICE
 
 ### How does content moderation work?
 
-When a user posts a message, it appears immediately in the channel. The plugin then analyzes the content in the background using Azure AI Content Safety APIs. If harmful content is detected, the post is automatically deleted and notifications are sent to inform users of the removal.
+When a user posts a message, it appears immediately in the channel. The plugin then analyzes the content in the background using the configured moderation backend. If harmful content is detected, the post is automatically deleted and notifications are sent to inform users of the removal.
 
 ### Will I still receive notifications for harmful content?
 
@@ -119,8 +126,8 @@ The plugin implements a dual-processor architecture with asynchronous content an
 │              │                  │    │                      │                      │
 │              ▼                  │    │                      ▼                      │
 │  ┌─────────────────────────────┐│    │  ┌─────────────────────────────────────────┐│
-│  │      Azure AI Content      ││    │  │       Wait for Results                  ││
-│  │       Safety API            ││    │  │                                         ││
+│  │    Moderation Backend       ││    │  │       Wait for Results                  ││
+│  │                             ││    │  │                                         ││
 │  │                             ││    │  │  Waits for moderation analysis          ││
 │  │  Analyzes content across    ││    │  │  to complete before taking action       ││
 │  │  multiple categories and    ││    │  │                                         ││
@@ -157,7 +164,7 @@ The plugin implements a dual-processor architecture with asynchronous content an
 
 - [ ] Implement notification blocking for posts under moderation
 - [X] Support writing moderation events to the Audit log
-- [ ] Add local LLM option as the moderator backend
+- [X] Add local LLM option as the moderator backend
 - [ ] Support excluding users from moderation by group
 - [ ] Support moderating text attachments
 - [ ] Support moderating images

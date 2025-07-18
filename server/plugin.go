@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
+	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation/agents"
 	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation/azure"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
@@ -70,7 +71,21 @@ func (p *Plugin) initialize(config *configuration) error {
 		return nil
 	}
 
-	moderator, err := initModerator(p.API, config)
+	excludedUsers := config.ExcludedUserSet()
+
+	botID, err := p.API.EnsureBotUser(&model.Bot{
+		Username:    config.BotUsername,
+		DisplayName: config.BotDisplayName,
+	})
+	if err != nil {
+		return errors.Wrap(err, "could not initialize bot user")
+	}
+
+	// We need a user ID to interact with agent plugin based backends, but
+	// we use the bot ID instead of user ID to ensure consistent access control.
+	// The bot account only needs to be granted agent access once, rather than
+	// requiring every user whose content is moderated to have agent permissions.
+	moderator, err := initModerator(p.API, config, botID)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize moderator")
 	}
@@ -89,16 +104,6 @@ func (p *Plugin) initialize(config *configuration) error {
 	p.moderationProcessor = moderationProcessor
 	p.moderationProcessor.start(p.API)
 
-	excludedUsers := config.ExcludedUserSet()
-
-	botID, err := p.API.EnsureBotUser(&model.Bot{
-		Username:    config.BotUsername,
-		DisplayName: config.BotDisplayName,
-	})
-	if err != nil {
-		return errors.Wrap(err, "could not initialize bot user")
-	}
-
 	processor, err := newPostProcessor(
 		botID, config.AuditLoggingEnabled, moderationResultsCache,
 		excludedUsers, p.excludedChannelStore,
@@ -112,12 +117,12 @@ func (p *Plugin) initialize(config *configuration) error {
 	return nil
 }
 
-func initModerator(api plugin.API, config *configuration) (moderation.Moderator, error) {
+func initModerator(api plugin.API, config *configuration, botID string) (moderation.Moderator, error) {
 	switch config.Type {
 	case "azure":
 		azureConfig := &moderation.Config{
-			Endpoint: config.Endpoint,
-			APIKey:   config.APIKey,
+			Endpoint: config.AzureEndpoint,
+			APIKey:   config.AzureAPIKey,
 		}
 
 		mod, err := azure.New(azureConfig)
@@ -126,6 +131,14 @@ func initModerator(api plugin.API, config *configuration) (moderation.Moderator,
 		}
 
 		api.LogInfo("Azure AI Content Safety moderator initialized")
+		return mod, nil
+	case "agents":
+		mod, err := agents.New(api, config.AgentsSystemPrompt, botID, config.AgentsBotUsername)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create agents moderator")
+		}
+
+		api.LogInfo("Agents plugin moderator initialized")
 		return mod, nil
 	default:
 		return nil, errors.Errorf("unknown moderator type: %s", config.Type)
