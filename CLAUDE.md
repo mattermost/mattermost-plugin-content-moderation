@@ -5,18 +5,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **IMPORTANT**: This CLAUDE.md file MUST be kept up to date whenever code changes are made, with NO EXCEPTIONS. Any changes to the codebase should be reflected in this document.
 
 ## Project Context
-This repository contains a Mattermost Content Moderation plugin that provides automatic content moderation using Azure AI Content Safety APIs. Key features:
+This repository contains a Mattermost Content Moderation plugin that provides automatic content moderation using multiple backend providers. Key features:
 
 - Text content moderation (hate speech, sexual, violence, self-harm)
+- Multiple moderation backends: Azure AI Content Safety and Agents Plugin (LLM)
 - Configurable single moderation threshold
 - User targeting (specific users or all users)
 - Plugin hooks for message posting and editing
-- Fail-closed approach for API failures
+- Fail-open approach for API failures
 - Integration with Mattermost AI Plugin
 
 The core components include:
 - `moderation/moderator.go`: Core moderation interface
 - `moderation/azure/azure.go`: Azure AI Content Safety implementation
+- `moderation/agents/agents.go`: Agents Plugin (LLM) implementation
 - `plugin.go`: Main plugin with hooks for message moderation
 - `configuration.go`: Plugin settings management
 
@@ -42,5 +44,8 @@ The core components include:
 - Use hooks defined in plugin.go for server-side integration
 - Maintain separation of concerns with modular organization
 - Plugin hooks for message interception (MessageWillBePosted, MessageWillBeUpdated)
-- Single moderator interface with Azure implementation
+- Single moderator interface with multiple backend implementations:
+  - Azure AI Content Safety
+  - Mattermost Agents Plugin
 - Configuration with a single threshold value instead of per-category thresholds
+- Backend selection via "type" configuration dropdown
