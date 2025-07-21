@@ -73,7 +73,7 @@ func (p *Plugin) initialize(config *configuration) error {
 
 	excludedUsers := config.ExcludedUserSet()
 
-	botID, err := p.API.EnsureBotUser(&model.Bot{
+	pluginBotID, err := p.API.EnsureBotUser(&model.Bot{
 		Username:    config.BotUsername,
 		DisplayName: config.BotDisplayName,
 	})
@@ -85,7 +85,7 @@ func (p *Plugin) initialize(config *configuration) error {
 	// we use the bot ID instead of user ID to ensure consistent access control.
 	// The bot account only needs to be granted agent access once, rather than
 	// requiring every user whose content is moderated to have agent permissions.
-	moderator, err := initModerator(p.API, config, botID)
+	moderator, err := initModerator(p.API, config, pluginBotID)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize moderator")
 	}
@@ -105,7 +105,7 @@ func (p *Plugin) initialize(config *configuration) error {
 	p.moderationProcessor.start(p.API)
 
 	processor, err := newPostProcessor(
-		botID, config.AuditLoggingEnabled, moderationResultsCache,
+		pluginBotID, config.AuditLoggingEnabled, moderationResultsCache,
 		excludedUsers, p.excludedChannelStore,
 		config.ExcludeDirectMessages, config.ExcludePrivateChannels)
 	if err != nil {
@@ -117,7 +117,7 @@ func (p *Plugin) initialize(config *configuration) error {
 	return nil
 }
 
-func initModerator(api plugin.API, config *configuration, botID string) (moderation.Moderator, error) {
+func initModerator(api plugin.API, config *configuration, pluginBotID string) (moderation.Moderator, error) {
 	switch config.Type {
 	case "azure":
 		azureConfig := &moderation.Config{
@@ -133,7 +133,7 @@ func initModerator(api plugin.API, config *configuration, botID string) (moderat
 		api.LogInfo("Azure AI Content Safety moderator initialized")
 		return mod, nil
 	case "agents":
-		mod, err := agents.New(api, config.AgentsSystemPrompt, botID, config.AgentsBotUsername)
+		mod, err := agents.New(api, config.AgentsSystemPrompt, pluginBotID, config.AgentsBotUsername)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create agents moderator")
 		}

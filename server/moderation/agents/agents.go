@@ -49,11 +49,11 @@ Respond with a JSON object in **exactly** the following format (no extra comment
 var _ moderation.Moderator = (*Moderator)(nil)
 
 type Moderator struct {
-	client       *interpluginclient.Client
-	systemPrompt string
-	api          plugin.API
-	botID        string
-	botUsername  string
+	client           *interpluginclient.Client
+	systemPrompt     string
+	api              plugin.API
+	pluginBotID      string
+	agentBotUsername string
 }
 
 type CategoryAnalysis struct {
@@ -65,10 +65,10 @@ type LLMResponse struct {
 	CategoriesAnalysis []CategoryAnalysis `json:"categoriesAnalysis"`
 }
 
-func New(api plugin.API, systemPrompt string, botID string, botUsername string) (*Moderator, error) {
+func New(api plugin.API, systemPrompt string, pluginBotID string, agentBotUsername string) (*Moderator, error) {
 	client := interpluginclient.NewClient(&plugin.MattermostPlugin{API: api})
 
-	if err := validateAgentsPlugin(client, api, botID); err != nil {
+	if err := validateAgentsPlugin(client, api, pluginBotID, agentBotUsername); err != nil {
 		return nil, errors.Wrap(err, "agents plugin not available")
 	}
 
@@ -77,23 +77,25 @@ func New(api plugin.API, systemPrompt string, botID string, botUsername string) 
 	}
 
 	return &Moderator{
-		client:       client,
-		systemPrompt: systemPrompt,
-		api:          api,
-		botID:        botID,
-		botUsername:  botUsername,
+		client:           client,
+		systemPrompt:     systemPrompt,
+		api:              api,
+		pluginBotID:      pluginBotID,
+		agentBotUsername: agentBotUsername,
 	}, nil
 }
 
-func validateAgentsPlugin(client *interpluginclient.Client, api plugin.API, botID string) error {
+func validateAgentsPlugin(client *interpluginclient.Client, api plugin.API, pluginBotID string, agentBotUsername string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	response, err := client.SimpleCompletionWithContext(ctx, interpluginclient.SimpleCompletionRequest{
+	request := interpluginclient.SimpleCompletionRequest{
 		SystemPrompt:    "Test connection",
 		UserPrompt:      "Respond with 'OK'",
-		RequesterUserID: botID,
-	})
+		RequesterUserID: pluginBotID,
+		BotUsername:     agentBotUsername,
+	}
+	response, err := client.SimpleCompletionWithContext(ctx, request)
 
 	if response != "OK" || err != nil {
 		return errors.Wrap(err, "agents plugin connection test failed")
@@ -106,8 +108,8 @@ func (m *Moderator) ModerateText(ctx context.Context, text string) (moderation.R
 	req := interpluginclient.SimpleCompletionRequest{
 		SystemPrompt:    m.systemPrompt,
 		UserPrompt:      fmt.Sprintf("Message: %q", text),
-		RequesterUserID: m.botID,
-		BotUsername:     m.botUsername,
+		RequesterUserID: m.pluginBotID,
+		BotUsername:     m.agentBotUsername,
 	}
 
 	response, err := m.client.SimpleCompletionWithContext(ctx, req)
