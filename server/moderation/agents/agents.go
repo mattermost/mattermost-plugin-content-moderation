@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/mattermost/mattermost-plugin-ai/interpluginclient"
 	"github.com/mattermost/mattermost-plugin-content-moderation/server/moderation"
@@ -68,10 +67,6 @@ type LLMResponse struct {
 func New(api plugin.API, systemPrompt string, pluginBotID string, agentBotUsername string) (*Moderator, error) {
 	client := interpluginclient.NewClient(&plugin.MattermostPlugin{API: api})
 
-	if err := validateAgentsPlugin(client, api, pluginBotID, agentBotUsername); err != nil {
-		return nil, errors.Wrap(err, "agents plugin not available")
-	}
-
 	if strings.TrimSpace(systemPrompt) == "" {
 		systemPrompt = defaultSystemPrompt
 	}
@@ -83,25 +78,6 @@ func New(api plugin.API, systemPrompt string, pluginBotID string, agentBotUserna
 		pluginBotID:      pluginBotID,
 		agentBotUsername: agentBotUsername,
 	}, nil
-}
-
-func validateAgentsPlugin(client *interpluginclient.Client, api plugin.API, pluginBotID string, agentBotUsername string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	request := interpluginclient.SimpleCompletionRequest{
-		SystemPrompt:    "Test connection",
-		UserPrompt:      "Respond with 'OK'",
-		RequesterUserID: pluginBotID,
-		BotUsername:     agentBotUsername,
-	}
-	response, err := client.SimpleCompletionWithContext(ctx, request)
-
-	if response != "OK" || err != nil {
-		return errors.Wrap(err, "agents plugin connection test failed")
-	}
-
-	return nil
 }
 
 func (m *Moderator) ModerateText(ctx context.Context, text string) (moderation.Result, error) {
