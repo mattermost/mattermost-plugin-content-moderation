@@ -31,9 +31,15 @@ type configuration struct {
 
 	Type string `json:"type"`
 
-	Endpoint  string `json:"azure_endpoint"`
-	APIKey    string `json:"azure_apiKey"`
-	Threshold string `json:"azure_threshold"`
+	// Azure-specific fields
+	AzureEndpoint  string `json:"azure_endpoint"`
+	AzureAPIKey    string `json:"azure_apiKey"`
+	AzureThreshold string `json:"azure_threshold"`
+
+	// Agents-specific fields
+	AgentsSystemPrompt string `json:"agents_system_prompt"`
+	AgentsThreshold    string `json:"agents_threshold"`
+	AgentsBotUsername  string `json:"agents_bot_username"`
 }
 
 func (c *configuration) ExcludedUserSet() map[string]struct{} {
@@ -50,14 +56,24 @@ func (c *configuration) ExcludedUserSet() map[string]struct{} {
 	return excludedMap
 }
 
-// ThresholdValue returns the threshold as an integer
+// ThresholdValue returns the threshold as an integer based on moderator type
 func (c *configuration) ThresholdValue() (int, error) {
-	if c.Threshold == "" {
+	var threshold string
+	switch c.Type {
+	case "azure":
+		threshold = c.AzureThreshold
+	case "agents":
+		threshold = c.AgentsThreshold
+	default:
+		return 0, errors.Errorf("unknown moderator type: %s", c.Type)
+	}
+
+	if threshold == "" {
 		return 0, errors.New("required threshold configuration is unset")
 	}
-	val, err := strconv.Atoi(c.Threshold)
+	val, err := strconv.Atoi(threshold)
 	if err != nil {
-		return 0, errors.Wrapf(err, "could not parse threshold value: '%s'", c.Threshold)
+		return 0, errors.Wrapf(err, "could not parse threshold value: '%s'", threshold)
 	}
 	return val, nil
 }
@@ -120,7 +136,10 @@ func (p *Plugin) setConfiguration(configuration *configuration) {
 		"excludedUsers", configuration.ExcludedUsers,
 		"excludeDirectMessages", configuration.ExcludeDirectMessages,
 		"excludePrivateChannels", configuration.ExcludePrivateChannels,
-		"moderationThreshold", configuration.Threshold,
+		"moderationType", configuration.Type,
+		"azureThreshold", configuration.AzureThreshold,
+		"agentsThreshold", configuration.AgentsThreshold,
+		"agentsBotUsername", configuration.AgentsBotUsername,
 		"auditLoggingEnabled", configuration.AuditLoggingEnabled,
 		"botUsername", configuration.BotUsername,
 		"botDisplayName", configuration.BotDisplayName,

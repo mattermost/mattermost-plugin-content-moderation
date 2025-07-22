@@ -39,6 +39,10 @@
                     {
                         "display_name": "Azure AI Content Safety",
                         "value": "azure"
+                    },
+                    {
+                        "display_name": "Mattermost Agents Plugin",
+                        "value": "agents"
                     }
                 ]
             },
@@ -46,7 +50,7 @@
                 "key": "azure_endpoint",
                 "display_name": "Azure API Endpoint",
                 "type": "text",
-                "help_text": "The endpoint URL for the Azure API.",
+                "help_text": "The endpoint URL for the Azure API. (Only required for Azure provider)",
                 "placeholder": "https://your-resource.cognitiveservices.azure.com/"
             },
             {
@@ -54,7 +58,7 @@
                 "display_name": "Azure API Key",
                 "type": "text",
                 "secret": true,
-                "help_text": "Your Azure API key.",
+                "help_text": "Your Azure API key. (Only required for Azure provider)",
                 "placeholder": "Enter your API key here"
             },
             {
@@ -97,7 +101,7 @@
                 "key": "azure_threshold",
                 "display_name": "Azure Moderation Threshold",
                 "type": "dropdown",
-                "help_text": "Severity threshold for all content categories (Low filters most aggressively).",
+                "help_text": "Severity threshold for all content categories (Low filters most aggressively). Only used for Azure provider.",
                 "default": "2",
                 "options": [
                     {
@@ -113,6 +117,42 @@
                         "value": "6"
                     }
                 ]
+            },
+            {
+                "key": "agents_system_prompt",
+                "display_name": "Agents System Prompt",
+                "type": "longtext",
+                "help_text": "The system prompt for the LLM moderation. Leave empty to use default prompt. Only used for Agents provider.",
+                "default": ""
+            },
+            {
+                "key": "agents_threshold",
+                "display_name": "Agents Moderation Threshold",
+                "type": "dropdown",
+                "help_text": "Severity threshold for all content categories (Low filters most aggressively). Only used for Agents provider.",
+                "default": "2",
+                "options": [
+                    {
+                        "display_name": "Low (2)",
+                        "value": "2"
+                    },
+                    {
+                        "display_name": "Medium (4)",
+                        "value": "4"
+                    },
+                    {
+                        "display_name": "High (6)",
+                        "value": "6"
+                    }
+                ]
+            },
+            {
+                "key": "agents_bot_username",
+                "display_name": "Agents Bot Username",
+                "type": "text",
+                "help_text": "The username of the specific agent to use for content moderation. Leave empty to use the default agent. Only used for Agents provider.",
+                "placeholder": "content-moderation-agent",
+                "default": ""
             },
             {
                 "key": "auditLoggingEnabled",

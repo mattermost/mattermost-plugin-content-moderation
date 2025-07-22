@@ -58,53 +58,83 @@ func TestConfiguration_ExcludedUserSet(t *testing.T) {
 
 func TestConfiguration_ThresholdValue(t *testing.T) {
 	tests := []struct {
-		name      string
-		threshold string
-		expected  int
-		wantError bool
+		name            string
+		moderatorType   string
+		azureThreshold  string
+		agentsThreshold string
+		expected        int
+		wantError       bool
 	}{
 		{
-			name:      "valid threshold",
-			threshold: "5",
-			expected:  5,
-			wantError: false,
+			name:           "valid azure threshold",
+			moderatorType:  "azure",
+			azureThreshold: "5",
+			expected:       5,
+			wantError:      false,
 		},
 		{
-			name:      "zero threshold",
-			threshold: "0",
-			expected:  0,
-			wantError: false,
+			name:            "valid agents threshold",
+			moderatorType:   "agents",
+			agentsThreshold: "4",
+			expected:        4,
+			wantError:       false,
 		},
 		{
-			name:      "empty threshold",
-			threshold: "",
-			expected:  0,
-			wantError: true,
+			name:           "zero azure threshold",
+			moderatorType:  "azure",
+			azureThreshold: "0",
+			expected:       0,
+			wantError:      false,
 		},
 		{
-			name:      "invalid threshold - not a number",
-			threshold: "abc",
-			expected:  0,
-			wantError: true,
+			name:           "empty azure threshold",
+			moderatorType:  "azure",
+			azureThreshold: "",
+			expected:       0,
+			wantError:      true,
 		},
 		{
-			name:      "invalid threshold - float",
-			threshold: "5.5",
-			expected:  0,
-			wantError: true,
+			name:            "empty agents threshold",
+			moderatorType:   "agents",
+			agentsThreshold: "",
+			expected:        0,
+			wantError:       true,
 		},
 		{
-			name:      "negative threshold",
-			threshold: "-1",
-			expected:  -1,
-			wantError: false,
+			name:           "invalid azure threshold - not a number",
+			moderatorType:  "azure",
+			azureThreshold: "abc",
+			expected:       0,
+			wantError:      true,
+		},
+		{
+			name:           "invalid azure threshold - float",
+			moderatorType:  "azure",
+			azureThreshold: "5.5",
+			expected:       0,
+			wantError:      true,
+		},
+		{
+			name:           "negative azure threshold",
+			moderatorType:  "azure",
+			azureThreshold: "-1",
+			expected:       -1,
+			wantError:      false,
+		},
+		{
+			name:          "unknown moderator type",
+			moderatorType: "unknown",
+			expected:      0,
+			wantError:     true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &configuration{
-				Threshold: tt.threshold,
+				Type:            tt.moderatorType,
+				AzureThreshold:  tt.azureThreshold,
+				AgentsThreshold: tt.agentsThreshold,
 			}
 			result, err := c.ThresholdValue()
 			if tt.wantError {
