@@ -36,10 +36,12 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, post *model.Post) {
 	}
 }
 
-func (p *Plugin) EmailNotificationWillBeSent(emailNotification *model.EmailNotification) (*model.EmailNotification, string) {
+func (p *Plugin) EmailNotificationWillBeSent(emailNotification *model.EmailNotification) (*model.EmailNotificationContent, string) {
 	if p.postProcessor == nil {
 		return nil, ""
 	}
+
+	p.API.LogError("EmailNotificationWillBeSent called")
 
 	post, err := p.postProcessor.postCache.getPost(p.API, emailNotification.PostId)
 	if err != nil {
