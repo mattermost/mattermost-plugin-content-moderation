@@ -4,6 +4,7 @@
 import {getCurrentUser} from 'mattermost-redux/selectors/entities/users';
 
 import {client} from '@/client';
+import ModeratorConfig from '@/components/admin_settings/moderator_config';
 import UserSettings from '@/components/admin_settings/user_settings';
 import manifest from '@/manifest';
 import type {PluginRegistry} from '@/types/mattermost-webapp';
@@ -14,6 +15,7 @@ export default class Plugin {
     public async initialize(registry: PluginRegistry, store: any) {
         this.store = store;
         registry.registerAdminConsoleCustomSetting('excludedUsers', UserSettings, {showTitle: true});
+        registry.registerAdminConsoleCustomSetting('moderatorConfig', ModeratorConfig, {showTitle: false});
 
         registry.registerChannelHeaderMenuAction(
             'Enable Channel Moderation',

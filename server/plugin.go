@@ -119,11 +119,11 @@ func (p *Plugin) initialize(config *configuration) error {
 }
 
 func initModerator(api plugin.API, config *configuration, pluginBotID string) (moderation.Moderator, error) {
-	switch config.Type {
+	switch config.ModeratorConfig.Type {
 	case "azure":
 		azureConfig := &moderation.Config{
-			Endpoint: config.AzureEndpoint,
-			APIKey:   config.AzureAPIKey,
+			Endpoint: config.ModeratorConfig.AzureEndpoint,
+			APIKey:   config.ModeratorConfig.AzureAPIKey,
 		}
 
 		mod, err := azure.New(azureConfig)
@@ -134,7 +134,7 @@ func initModerator(api plugin.API, config *configuration, pluginBotID string) (m
 		api.LogInfo("Azure AI Content Safety moderator initialized")
 		return mod, nil
 	case "agents":
-		mod, err := agents.New(api, config.AgentsSystemPrompt, pluginBotID, config.AgentsBotUsername)
+		mod, err := agents.New(api, config.ModeratorConfig.AgentsSystemPrompt, pluginBotID, config.ModeratorConfig.AgentsBotUsername)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create agents moderator")
 		}
@@ -142,6 +142,6 @@ func initModerator(api plugin.API, config *configuration, pluginBotID string) (m
 		api.LogInfo("Agents plugin moderator initialized")
 		return mod, nil
 	default:
-		return nil, errors.Errorf("unknown moderator type: %s", config.Type)
+		return nil, errors.Errorf("unknown moderator type: %s", config.ModeratorConfig.Type)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-ai/interpluginclient"
@@ -18,32 +19,6 @@ const (
 	CategoryViolence = "Violence"
 	CategorySelfHarm = "SelfHarm"
 )
-
-const defaultSystemPrompt = `You are an AI system trained to evaluate user-generated content for safety and policy compliance.
-
-Your task is to assess the message below for the following four categories:
-
-- Hate: Language that expresses, incites, or promotes hatred based on race, religion, gender, sexuality, or similar group identity.
-- SelfHarm: Mentions of self-injury, suicide, or encouragement of self-harm.
-- Sexual: Sexually explicit or suggestive language, including innuendo, erotic descriptions, or references to sexual acts.
-- Violence: Threats, encouragement, or descriptions of physical violence, abuse, or harm.
-
-For each category, assign a severity score using the following scale:
-- 0 — No content of this type
-- 2 — Mild concern
-- 4 — Moderate concern
-- 6 — Severe concern
-
-Respond with a JSON object in **exactly** the following format (no extra commentary):
-
-{
-  "categoriesAnalysis": [
-    {"category": "Hate", "severity": 0},
-    {"category": "SelfHarm", "severity": 0},
-    {"category": "Sexual", "severity": 0},
-    {"category": "Violence", "severity": 0}
-  ]
-}`
 
 var _ moderation.Moderator = (*Moderator)(nil)
 
@@ -66,11 +41,6 @@ type LLMResponse struct {
 
 func New(api plugin.API, systemPrompt string, pluginBotID string, agentBotUsername string) (*Moderator, error) {
 	client := interpluginclient.NewClient(&plugin.MattermostPlugin{API: api})
-
-	if strings.TrimSpace(systemPrompt) == "" {
-		systemPrompt = defaultSystemPrompt
-	}
-
 	return &Moderator{
 		client:           client,
 		systemPrompt:     systemPrompt,
@@ -109,6 +79,10 @@ func (m *Moderator) parseStructuredResponse(response string) (moderation.Result,
 	}
 	jsonStr := response[jsonStart : jsonEnd+1]
 
+	// sometimes the LLM returns comments in the json, so we strip those out
+	commentRe := regexp.MustCompile(`//.*\n`)
+	jsonStr = commentRe.ReplaceAllString(jsonStr, "")
+
 	var llmResponse LLMResponse
 	if err := json.Unmarshal([]byte(jsonStr), &llmResponse); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal JSON response")
@@ -131,12 +105,7 @@ func (m *Moderator) parseStructuredResponse(response string) (moderation.Result,
 }
 
 func (m *Moderator) validateSeverity(severity int) error {
-	switch severity {
-	case 0:
-	case 2:
-	case 4:
-	case 6:
-	default:
+	if severity < 0 || severity > 6 {
 		return errors.New("invalid severity value")
 	}
 	return nil
