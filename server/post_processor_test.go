@@ -57,6 +57,7 @@ func TestPostProcessor_shouldModerateUser(t *testing.T) {
 		processor := &PostProcessor{
 			botID:         "bot123",
 			excludedUsers: map[string]struct{}{},
+			postCache:     newPostCache(),
 		}
 
 		auditRecord := plugin.MakeAuditRecord("test", model.AuditStatusAttempt)
@@ -69,6 +70,7 @@ func TestPostProcessor_shouldModerateUser(t *testing.T) {
 		processor := &PostProcessor{
 			botID:         "bot123",
 			excludedUsers: map[string]struct{}{},
+			postCache:     newPostCache(),
 		}
 
 		auditRecord := plugin.MakeAuditRecord("test", model.AuditStatusAttempt)
@@ -84,6 +86,7 @@ func TestPostProcessor_shouldModerateUser(t *testing.T) {
 				"user456": {},
 				"user789": {},
 			},
+			postCache: newPostCache(),
 		}
 
 		auditRecord := plugin.MakeAuditRecord("test", model.AuditStatusAttempt)
@@ -98,6 +101,7 @@ func TestPostProcessor_shouldModerateUser(t *testing.T) {
 			excludedUsers: map[string]struct{}{
 				"user456": {},
 			},
+			postCache: newPostCache(),
 		}
 
 		auditRecord := plugin.MakeAuditRecord("test", model.AuditStatusAttempt)
@@ -112,6 +116,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 		excludedStore := NewMockExcludedChannelsStore([]string{"channel123", "channel456"})
 		processor := &PostProcessor{
 			excludedChannelStore: excludedStore,
+			postCache:            newPostCache(),
 		}
 
 		api := &plugintest.API{}
@@ -126,6 +131,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 		processor := &PostProcessor{
 			excludedChannelStore:  excludedStore,
 			excludeDirectMessages: true,
+			postCache:             newPostCache(),
 		}
 
 		api := &plugintest.API{}
@@ -145,6 +151,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 		processor := &PostProcessor{
 			excludedChannelStore:  NewMockExcludedChannelsStore([]string{}),
 			excludeDirectMessages: true,
+			postCache:             newPostCache(),
 		}
 
 		api := &plugintest.API{}
@@ -164,6 +171,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 		processor := &PostProcessor{
 			excludedChannelStore:   NewMockExcludedChannelsStore([]string{}),
 			excludePrivateChannels: true,
+			postCache:              newPostCache(),
 		}
 
 		api := &plugintest.API{}
@@ -184,6 +192,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 			excludedChannelStore:   NewMockExcludedChannelsStore([]string{}),
 			excludeDirectMessages:  false,
 			excludePrivateChannels: false,
+			postCache:              newPostCache(),
 		}
 
 		api := &plugintest.API{}
@@ -203,6 +212,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 		processor := &PostProcessor{
 			excludedChannelStore:  NewMockExcludedChannelsStore([]string{}),
 			excludeDirectMessages: false,
+			postCache:             newPostCache(),
 		}
 
 		api := &plugintest.API{}
@@ -222,6 +232,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 		processor := &PostProcessor{
 			excludedChannelStore:   NewMockExcludedChannelsStore([]string{}),
 			excludePrivateChannels: false,
+			postCache:              newPostCache(),
 		}
 
 		api := &plugintest.API{}
@@ -240,6 +251,7 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 	t.Run("should handle channel fetch error gracefully", func(t *testing.T) {
 		processor := &PostProcessor{
 			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
+			postCache:            newPostCache(),
 		}
 
 		api := &plugintest.API{}
@@ -260,6 +272,7 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 		processor := &PostProcessor{
 			botID:         "bot123",
 			excludedUsers: map[string]struct{}{},
+			postCache:     newPostCache(),
 			postsCh:       make(chan *model.Post, 1),
 			done:          make(chan struct{}),
 		}
@@ -285,6 +298,7 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 			excludedUsers:        map[string]struct{}{"user456": {}},
 			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
 			resultsCache:         cache,
+			postCache:            newPostCache(),
 			postsCh:              make(chan *model.Post, 1),
 			done:                 make(chan struct{}),
 		}
@@ -325,6 +339,7 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 			excludedUsers:        map[string]struct{}{},
 			excludedChannelStore: NewMockExcludedChannelsStore([]string{"channel123"}),
 			resultsCache:         cache,
+			postCache:            newPostCache(),
 			postsCh:              make(chan *model.Post, 1),
 			done:                 make(chan struct{}),
 		}
@@ -366,6 +381,7 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 			excludedUsers:        map[string]struct{}{},
 			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
 			resultsCache:         cache,
+			postCache:            newPostCache(),
 			postsCh:              make(chan *model.Post, 1),
 			done:                 make(chan struct{}),
 			auditLogEnabled:      false,
@@ -414,6 +430,7 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 			excludedUsers:        map[string]struct{}{},
 			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
 			resultsCache:         cache,
+			postCache:            newPostCache(),
 			postsCh:              make(chan *model.Post, 1),
 			done:                 make(chan struct{}),
 			auditLogEnabled:      false,
@@ -472,6 +489,7 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 			excludedUsers:        map[string]struct{}{},
 			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
 			resultsCache:         cache,
+			postCache:            newPostCache(),
 			postsCh:              make(chan *model.Post, 1),
 			done:                 make(chan struct{}),
 			auditLogEnabled:      false,

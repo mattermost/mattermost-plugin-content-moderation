@@ -41,8 +41,6 @@ func (p *Plugin) EmailNotificationWillBeSent(emailNotification *model.EmailNotif
 		return nil, ""
 	}
 
-	p.API.LogError("EmailNotificationWillBeSent called")
-
 	post, err := p.postProcessor.postCache.getPost(p.API, emailNotification.PostId)
 	if err != nil {
 		p.API.LogError("Cannot retrieve post before sending email notification",
