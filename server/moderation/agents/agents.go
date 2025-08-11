@@ -65,7 +65,7 @@ func (m *Moderator) ModerateText(ctx context.Context, text string) (moderation.R
 
 	result, err := m.parseStructuredResponse(response)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse LLM response")
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to parse LLM response: '%s'", response))
 	}
 
 	return result, nil
