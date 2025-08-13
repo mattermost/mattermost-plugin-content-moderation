@@ -62,7 +62,10 @@ When a user posts a message, it appears immediately in the channel. The plugin t
 
 ### Will I still receive notifications for harmful content?
 
-Currently, yes. Push notifications may be sent for posts that contain harmful content before the moderation process completes. This is because notifications are typically sent immediately when posts are created, while content analysis happens asynchronously. We are working to improve this behavior (see roadmap).
+This depends on the notification type:
+
+- **Email notifications**: Will be blocked for flagged content if the moderation service responds within 15 seconds.
+- **Web and desktop notifications**: May still be sent for posts containing harmful content before the moderation process completes, as these are sent immediately when posts are created while content analysis happens asynchronously.
 
 ### Can I exclude certain users from moderation?
 
@@ -162,7 +165,7 @@ The plugin implements a dual-processor architecture with asynchronous content an
 
 ## Roadmap
 
-- [ ] Implement notification blocking for posts under moderation
+- [X] Implement email notification blocking for flagged posts
 - [X] Support writing moderation events to the Audit log
 - [X] Add local LLM option as the moderator backend
 - [ ] Support excluding users from moderation by group

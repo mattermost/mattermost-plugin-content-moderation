@@ -7,13 +7,12 @@ toolchain go1.24.4
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/mattermost/mattermost-plugin-ai v1.3.0
-	github.com/mattermost/mattermost/server/public v0.1.16-0.20250626003732-aaa62a40ae86
+	github.com/mattermost/mattermost/server/public v0.1.17-0.20250805130907-c0ff672afb34
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.10.0
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 )
@@ -26,7 +25,6 @@ require (
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.7 // indirect
-	github.com/go-sql-driver/mysql v1.9.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect

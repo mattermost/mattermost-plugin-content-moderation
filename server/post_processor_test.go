@@ -57,6 +57,8 @@ func TestPostProcessor_shouldModerateUser(t *testing.T) {
 		processor := &PostProcessor{
 			botID:         "bot123",
 			excludedUsers: map[string]struct{}{},
+			postCache:     newPostCache(),
+			cleanupTicker: time.NewTicker(24 * time.Hour),
 		}
 
 		auditRecord := plugin.MakeAuditRecord("test", model.AuditStatusAttempt)
@@ -69,6 +71,8 @@ func TestPostProcessor_shouldModerateUser(t *testing.T) {
 		processor := &PostProcessor{
 			botID:         "bot123",
 			excludedUsers: map[string]struct{}{},
+			postCache:     newPostCache(),
+			cleanupTicker: time.NewTicker(24 * time.Hour),
 		}
 
 		auditRecord := plugin.MakeAuditRecord("test", model.AuditStatusAttempt)
@@ -84,6 +88,8 @@ func TestPostProcessor_shouldModerateUser(t *testing.T) {
 				"user456": {},
 				"user789": {},
 			},
+			postCache:     newPostCache(),
+			cleanupTicker: time.NewTicker(24 * time.Hour),
 		}
 
 		auditRecord := plugin.MakeAuditRecord("test", model.AuditStatusAttempt)
@@ -98,6 +104,8 @@ func TestPostProcessor_shouldModerateUser(t *testing.T) {
 			excludedUsers: map[string]struct{}{
 				"user456": {},
 			},
+			postCache:     newPostCache(),
+			cleanupTicker: time.NewTicker(24 * time.Hour),
 		}
 
 		auditRecord := plugin.MakeAuditRecord("test", model.AuditStatusAttempt)
@@ -112,6 +120,8 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 		excludedStore := NewMockExcludedChannelsStore([]string{"channel123", "channel456"})
 		processor := &PostProcessor{
 			excludedChannelStore: excludedStore,
+			postCache:            newPostCache(),
+			cleanupTicker:        time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
@@ -126,6 +136,8 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 		processor := &PostProcessor{
 			excludedChannelStore:  excludedStore,
 			excludeDirectMessages: true,
+			postCache:             newPostCache(),
+			cleanupTicker:         time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
@@ -145,6 +157,8 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 		processor := &PostProcessor{
 			excludedChannelStore:  NewMockExcludedChannelsStore([]string{}),
 			excludeDirectMessages: true,
+			postCache:             newPostCache(),
+			cleanupTicker:         time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
@@ -164,6 +178,8 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 		processor := &PostProcessor{
 			excludedChannelStore:   NewMockExcludedChannelsStore([]string{}),
 			excludePrivateChannels: true,
+			postCache:              newPostCache(),
+			cleanupTicker:          time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
@@ -184,6 +200,8 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 			excludedChannelStore:   NewMockExcludedChannelsStore([]string{}),
 			excludeDirectMessages:  false,
 			excludePrivateChannels: false,
+			postCache:              newPostCache(),
+			cleanupTicker:          time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
@@ -203,6 +221,8 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 		processor := &PostProcessor{
 			excludedChannelStore:  NewMockExcludedChannelsStore([]string{}),
 			excludeDirectMessages: false,
+			postCache:             newPostCache(),
+			cleanupTicker:         time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
@@ -222,6 +242,8 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 		processor := &PostProcessor{
 			excludedChannelStore:   NewMockExcludedChannelsStore([]string{}),
 			excludePrivateChannels: false,
+			postCache:              newPostCache(),
+			cleanupTicker:          time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
@@ -240,6 +262,8 @@ func TestPostProcessor_shouldModerateChannel(t *testing.T) {
 	t.Run("should handle channel fetch error gracefully", func(t *testing.T) {
 		processor := &PostProcessor{
 			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
+			postCache:            newPostCache(),
+			cleanupTicker:        time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
@@ -260,14 +284,20 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 		processor := &PostProcessor{
 			botID:         "bot123",
 			excludedUsers: map[string]struct{}{},
+			postCache:     newPostCache(),
 			postsCh:       make(chan *model.Post, 1),
 			done:          make(chan struct{}),
+			cleanupTicker: time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
 
 		// Call stop to close the done channel
 		processor.stop()
+
+		// stop() sets the ticker to nil, but we need it to be
+		// non-nil call processPostsLoop. So let's re-create it.
+		processor.cleanupTicker = time.NewTicker(24 * time.Hour)
 
 		// This should return immediately without blocking
 		start := time.Now()
@@ -285,8 +315,10 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 			excludedUsers:        map[string]struct{}{"user456": {}},
 			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
 			resultsCache:         cache,
+			postCache:            newPostCache(),
 			postsCh:              make(chan *model.Post, 1),
 			done:                 make(chan struct{}),
+			cleanupTicker:        time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
@@ -325,8 +357,10 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 			excludedUsers:        map[string]struct{}{},
 			excludedChannelStore: NewMockExcludedChannelsStore([]string{"channel123"}),
 			resultsCache:         cache,
+			postCache:            newPostCache(),
 			postsCh:              make(chan *model.Post, 1),
 			done:                 make(chan struct{}),
+			cleanupTicker:        time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
@@ -366,9 +400,11 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 			excludedUsers:        map[string]struct{}{},
 			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
 			resultsCache:         cache,
+			postCache:            newPostCache(),
 			postsCh:              make(chan *model.Post, 1),
 			done:                 make(chan struct{}),
 			auditLogEnabled:      false,
+			cleanupTicker:        time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
@@ -414,9 +450,11 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 			excludedUsers:        map[string]struct{}{},
 			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
 			resultsCache:         cache,
+			postCache:            newPostCache(),
 			postsCh:              make(chan *model.Post, 1),
 			done:                 make(chan struct{}),
 			auditLogEnabled:      false,
+			cleanupTicker:        time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}
@@ -472,9 +510,11 @@ func TestPostProcessor_processPostsLoop(t *testing.T) {
 			excludedUsers:        map[string]struct{}{},
 			excludedChannelStore: NewMockExcludedChannelsStore([]string{}),
 			resultsCache:         cache,
+			postCache:            newPostCache(),
 			postsCh:              make(chan *model.Post, 1),
 			done:                 make(chan struct{}),
 			auditLogEnabled:      false,
+			cleanupTicker:        time.NewTicker(24 * time.Hour),
 		}
 
 		api := &plugintest.API{}

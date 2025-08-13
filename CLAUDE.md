@@ -20,6 +20,8 @@ The core components include:
 - `moderation/azure/azure.go`: Azure AI Content Safety implementation
 - `moderation/agents/agents.go`: Agents Plugin (LLM) implementation
 - `plugin.go`: Main plugin with hooks for message moderation
+- `post_cache.go`: Post cache for email notification processing (5-minute TTL)
+- `hooks.go`: Plugin hooks including email notification blocking (15-second timeout)
 - `configuration.go`: Plugin settings management
 
 ## Build Commands
@@ -43,7 +45,9 @@ The core components include:
 - Follow Mattermost plugin patterns with server/ and webapp/ directories
 - Use hooks defined in plugin.go for server-side integration
 - Maintain separation of concerns with modular organization
-- Plugin hooks for message interception (MessageWillBePosted, MessageWillBeUpdated)
+- Plugin hooks for message interception (MessageWillBePosted, MessageWillBeUpdated, MessageHasBeenPosted, MessageHasBeenUpdated)
+- Email notification blocking hook (EmailNotificationWillBeSent) with 15-second timeout
+- Post cache system with 5-minute TTL for efficient post retrieval during email notification processing
 - Single moderator interface with multiple backend implementations:
   - Azure AI Content Safety
   - Mattermost Agents Plugin
