@@ -5,6 +5,7 @@ import {connect} from 'react-redux';
 import {bindActionCreators} from 'redux';
 import type {Dispatch} from 'redux';
 
+import type {GlobalState} from '@mattermost/types/store';
 import type {UserProfile} from '@mattermost/types/users';
 
 import {
@@ -13,7 +14,6 @@ import {
     getMissingProfilesByIds,
 } from 'mattermost-redux/actions/users';
 import {getUsers} from 'mattermost-redux/selectors/entities/users';
-import type {GlobalState} from 'mattermost-redux/types/store';
 
 import UsersInput from './users_input';
 
