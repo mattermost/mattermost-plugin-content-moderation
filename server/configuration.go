@@ -8,6 +8,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ModeratorConfig represents the configuration for content moderation providers
+type ModeratorConfig struct {
+	Type               string `json:"type"`
+	AzureEndpoint      string `json:"azure_endpoint"`
+	AzureAPIKey        string `json:"azure_apiKey"`
+	AzureThreshold     string `json:"azure_threshold"`
+	AgentsSystemPrompt string `json:"agents_system_prompt"`
+	AgentsThreshold    string `json:"agents_threshold"`
+	AgentsBotUsername  string `json:"agents_bot_username"`
+}
+
 // configuration captures the plugin's external configuration as exposed in the Mattermost server
 // configuration, as well as values computed from the configuration. Any public fields will be
 // deserialized from the Mattermost server configuration in OnConfigurationChange.
@@ -28,18 +39,7 @@ type configuration struct {
 	BotDisplayName         string `json:"botDisplayName"`
 	AuditLoggingEnabled    bool   `json:"auditLoggingEnabled"`
 	RateLimitPerMinute     int    `json:"rateLimitPerMinute"`
-
-	Type string `json:"type"`
-
-	// Azure-specific fields
-	AzureEndpoint  string `json:"azure_endpoint"`
-	AzureAPIKey    string `json:"azure_apiKey"`
-	AzureThreshold string `json:"azure_threshold"`
-
-	// Agents-specific fields
-	AgentsSystemPrompt string `json:"agents_system_prompt"`
-	AgentsThreshold    string `json:"agents_threshold"`
-	AgentsBotUsername  string `json:"agents_bot_username"`
+	ModeratorConfig        `json:"moderatorConfig"`
 }
 
 func (c *configuration) ExcludedUserSet() map[string]struct{} {
@@ -59,13 +59,13 @@ func (c *configuration) ExcludedUserSet() map[string]struct{} {
 // ThresholdValue returns the threshold as an integer based on moderator type
 func (c *configuration) ThresholdValue() (int, error) {
 	var threshold string
-	switch c.Type {
+	switch c.ModeratorConfig.Type {
 	case "azure":
-		threshold = c.AzureThreshold
+		threshold = c.ModeratorConfig.AzureThreshold
 	case "agents":
-		threshold = c.AgentsThreshold
+		threshold = c.ModeratorConfig.AgentsThreshold
 	default:
-		return 0, errors.Errorf("unknown moderator type: %s", c.Type)
+		return 0, errors.Errorf("unknown moderator type: %s", c.ModeratorConfig.Type)
 	}
 
 	if threshold == "" {
@@ -136,10 +136,10 @@ func (p *Plugin) setConfiguration(configuration *configuration) {
 		"excludedUsers", configuration.ExcludedUsers,
 		"excludeDirectMessages", configuration.ExcludeDirectMessages,
 		"excludePrivateChannels", configuration.ExcludePrivateChannels,
-		"moderationType", configuration.Type,
-		"azureThreshold", configuration.AzureThreshold,
-		"agentsThreshold", configuration.AgentsThreshold,
-		"agentsBotUsername", configuration.AgentsBotUsername,
+		"moderationType", configuration.ModeratorConfig.Type,
+		"azureThreshold", configuration.ModeratorConfig.AzureThreshold,
+		"agentsThreshold", configuration.ModeratorConfig.AgentsThreshold,
+		"agentsBotUsername", configuration.ModeratorConfig.AgentsBotUsername,
 		"auditLoggingEnabled", configuration.AuditLoggingEnabled,
 		"botUsername", configuration.BotUsername,
 		"botDisplayName", configuration.BotDisplayName,

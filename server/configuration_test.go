@@ -132,9 +132,11 @@ func TestConfiguration_ThresholdValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &configuration{
-				Type:            tt.moderatorType,
-				AzureThreshold:  tt.azureThreshold,
-				AgentsThreshold: tt.agentsThreshold,
+				ModeratorConfig: ModeratorConfig{
+					Type:            tt.moderatorType,
+					AzureThreshold:  tt.azureThreshold,
+					AgentsThreshold: tt.agentsThreshold,
+				},
 			}
 			result, err := c.ThresholdValue()
 			if tt.wantError {
