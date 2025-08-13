@@ -26,33 +26,11 @@ func TestModerationResultsCache_cleanup(t *testing.T) {
 		time.Sleep(150 * time.Millisecond)
 
 		// Cleanup expired entries
-		cache.cleanup(false)
+		cache.cleanup()
 
 		// Verify entries are removed
 		if len(cache.cache) != 0 {
 			t.Errorf("Expected 0 cache entries after cleanup, got %d", len(cache.cache))
-		}
-	})
-
-	t.Run("cleanup with ignoreExpiry true", func(t *testing.T) {
-		cache := newModerationResultsCache()
-		cache.cacheTTL = 5 * time.Minute // Long TTL
-
-		// Add some entries
-		cache.setResultPending("message1")
-		cache.setModerationResultNotFlagged("message2", moderation.Result{})
-
-		// Verify entries exist
-		if len(cache.cache) != 2 {
-			t.Errorf("Expected 2 cache entries, got %d", len(cache.cache))
-		}
-
-		// Cleanup ignoring expiry
-		cache.cleanup(true)
-
-		// Verify all entries are removed
-		if len(cache.cache) != 0 {
-			t.Errorf("Expected 0 cache entries after cleanup with ignoreExpiry=true, got %d", len(cache.cache))
 		}
 	})
 
@@ -73,7 +51,7 @@ func TestModerationResultsCache_cleanup(t *testing.T) {
 		}
 
 		// Cleanup expired entries
-		cache.cleanup(false)
+		cache.cleanup()
 
 		// Verify only fresh entry remains
 		if len(cache.cache) != 1 {
@@ -104,7 +82,7 @@ func TestModerationResultsCache_cleanup(t *testing.T) {
 		time.Sleep(150 * time.Millisecond)
 
 		// Cleanup expired entries
-		cache.cleanup(false)
+		cache.cleanup()
 
 		// Verify listener channel is closed
 		select {

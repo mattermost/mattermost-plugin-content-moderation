@@ -76,17 +76,6 @@ func newPostProcessor(
 }
 
 func (p *PostProcessor) start(api plugin.API) {
-	go func() {
-		for {
-			select {
-			case <-p.cleanupTicker.C:
-				p.postCache.cleanup(false)
-			case <-p.done:
-				return
-			}
-		}
-	}()
-
 	go p.processPostsLoop(api)
 }
 
@@ -96,6 +85,9 @@ func (p *PostProcessor) processPostsLoop(api plugin.API) {
 
 		select {
 		case post = <-p.postsCh:
+		case <-p.cleanupTicker.C:
+			p.postCache.cleanup()
+			continue
 		case <-p.done:
 			return
 		}

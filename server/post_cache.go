@@ -72,13 +72,13 @@ func (pc *postCache) getPost(api plugin.API, postID string) (*model.Post, error)
 	return post, nil
 }
 
-func (pc *postCache) cleanup(ignoreExpiry bool) {
+func (pc *postCache) cleanup() {
 	pc.cacheLock.Lock()
 	defer pc.cacheLock.Unlock()
 
 	now := time.Now()
 	for id, post := range pc.cache {
-		if ignoreExpiry || now.Sub(post.timestamp) > pc.cacheTTL {
+		if now.Sub(post.timestamp) > pc.cacheTTL {
 			delete(pc.cache, id)
 		}
 	}

@@ -156,13 +156,13 @@ func (pc *moderationResultsCache) notifyListeners(message string, result *modera
 	delete(pc.listeners, message)
 }
 
-func (pc *moderationResultsCache) cleanup(ignoreExpiry bool) {
+func (pc *moderationResultsCache) cleanup() {
 	pc.cacheLock.Lock()
 	defer pc.cacheLock.Unlock()
 
 	now := time.Now()
 	for message, result := range pc.cache {
-		if ignoreExpiry || now.Sub(result.timestamp) > pc.cacheTTL {
+		if now.Sub(result.timestamp) > pc.cacheTTL {
 			delete(pc.cache, message)
 			for _, ch := range pc.listeners[message] {
 				close(ch)

@@ -53,20 +53,12 @@ func (p *ModerationProcessor) start(api plugin.API) {
 	go func() {
 		for {
 			select {
-			case <-p.cleanupTicker.C:
-				p.moderationResultsCache.cleanup(false)
-			case <-p.done:
-				return
-			}
-		}
-	}()
-
-	go func() {
-		for {
-			select {
 			case message := <-p.messagesCh:
 				p.moderateMessage(message)
 				time.Sleep(p.processingInterval)
+			case <-p.cleanupTicker.C:
+				p.moderationResultsCache.cleanup()
+				continue
 			case <-p.done:
 				return
 			}
