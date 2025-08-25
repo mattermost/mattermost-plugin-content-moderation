@@ -24,6 +24,27 @@ Key features:
 
 To use the Agents Plugin as your moderation backend, install and configure the Mattermost Agents Plugin with an agent that has "Enable Tools" disabled and is accessible to all users. We recommend using Mistral as the LLM model for content moderation tasks.
 
+### Flexible Content Moderation with Agents Mode
+
+When using agents mode, the plugin can moderate all kinds of content - not just harmful content. The system prompt is fully configurable, allowing administrators to flag posts based on any criteria by customizing the prompt.
+
+**Examples of flexible moderation use cases:**
+
+- **Confidential Project Protection**: Flag content related to confidential projects unless posted to specific excluded channels
+- **Compliance Monitoring**: Flag posts containing sensitive information like customer data, financial details, or proprietary information
+- **Topic-Based Moderation**: Flag discussions about specific topics that should be limited to certain channels
+- **Language Standards**: Flag posts containing inappropriate language for professional environments beyond standard harmful content
+- **Custom Security Policies**: Implement organization-specific content policies based on internal guidelines
+
+**How it works:**
+
+1. Configure the "Agents System Prompt" to define your custom moderation criteria
+2. Use the "Excluded Channels" setting to allow specific discussions in designated channels
+3. Adjust the "Agents Threshold" to control sensitivity (0-6 scale)
+4. The LLM analyzes each message against your custom criteria and assigns a severity score
+
+This approach provides organizations with complete control over content moderation policies while leveraging the intelligence of large language models to understand context and nuance.
+
 ## Configuration
 
 Configuration options:
