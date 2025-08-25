@@ -265,21 +265,42 @@ const ModeratorConfig: React.FC<ModeratorConfigProps> = ({id, value, onChange}) 
                 </div>
 
                 <div style={{marginBottom: '16px'}}>
-                    <label
-                        style={{
-                            display: 'block',
-                            marginBottom: '8px',
-                            color: '#3f4350',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                        }}
-                    >
-                        {'System Prompt'}
-                    </label>
+                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px'}}>
+                        <label
+                            style={{
+                                color: '#3f4350',
+                                fontSize: '14px',
+                                fontWeight: '600',
+                            }}
+                        >
+                            {'System Prompt'}
+                        </label>
+                        <button
+                            type='button'
+                            onClick={() => handleFieldChange('agents_system_prompt', DEFAULT_AGENTS_SYSTEM_PROMPT)}
+                            style={{
+                                padding: '4px 8px',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                backgroundColor: '#f9fafb',
+                                color: '#374151',
+                                cursor: 'pointer',
+                                fontWeight: '500',
+                            }}
+                            onMouseOver={(e) => {
+                                e.currentTarget.style.backgroundColor = '#f3f4f6';
+                            }}
+                            onMouseOut={(e) => {
+                                e.currentTarget.style.backgroundColor = '#f9fafb';
+                            }}
+                        >
+                            {'Reset to Default'}
+                        </button>
+                    </div>
                     <textarea
                         value={agentsSystemPrompt}
                         onChange={(e) => handleFieldChange('agents_system_prompt', e.target.value)}
-                        placeholder='Default prompt will be used when empty'
                         rows={4}
                         style={{
                             width: '100%',
