@@ -2,11 +2,11 @@
 
 This plugin provides content moderation capabilities for Mattermost using Azure AI Content Safety APIs or the Mattermost Agents Plugin.
 
-This plugin requires an active enterprise license of Mattermost.
+This plugin requires an active Mattermost Enterprise license.
 
 ## Overview
 
-The Content Moderation Plugin allows Mattermost administrators to ensure all content shared on the platform meets community guidelines by automatically moderating messages and attachments.
+The Content Moderation Plugin allows Mattermost system administrators to ensure all content shared on the platform meets community guidelines by automatically moderating messages and attachments.
 
 Key features:
 - Text content moderation (hate speech, sexual content, violence, self-harm)
@@ -15,33 +15,37 @@ Key features:
 
 ## Installation
 
-1. Download the latest release from the [releases page](https://github.com/mattermost/mattermost-plugin-content-moderation/releases)
-2. Upload the plugin to your Mattermost instance via System Console > Plugin Management
-3. Enable the plugin
-4. Configure the plugin with your moderation backend and settings
+1. Download the latest release from the [releases page](https://github.com/mattermost/mattermost-plugin-content-moderation/releases).
+2. Upload the plugin to your Mattermost instance via **System Console > Plugins > Plugin Management**.
+3. Enable the plugin.
+4. Configure the plugin with your moderation backend and settings.
 
 ## Agents Plugin Setup
 
-To use the Agents Plugin as your moderation backend, install and configure the Mattermost Agents Plugin with an agent that has "Enable Tools" disabled and is accessible to all users. We recommend using Mistral as the LLM model for content moderation tasks.
+To use the Mattermost Agents Plugin as your moderation backend, install and configure the Mattermost Agents Plugin with an agent that has **Enable Tools** disabled and is accessible to all users. We recommend using Mistral as the LLM model for content moderation tasks.
+
+.. note::
+
+  Content moderation is typically a short text classification task. Smaller LLMs are usually sufficient and can run on modest server hardware. In many deployments, a compact model (for example, in the ~7B class, potentially quantized) on a modern CPU-only server or a single small GPU is enough to handle typical Mattermost message volumes while keeping latency and costs low, especially when self-hosted.
 
 ### Flexible Content Moderation with Agents Mode
 
-When using agents mode, the plugin can moderate all kinds of content - not just harmful content. The system prompt is fully configurable, allowing administrators to flag posts based on any criteria by customizing the prompt.
+When using Agents Mode, the plugin can moderate all kinds of content - not just harmful content. The system prompt is fully configurable, allowing system administrators to flag posts based on any criteria by customizing the prompt.
 
 **Examples of flexible moderation use cases:**
 
-- **Confidential Project Protection**: Flag content related to confidential projects unless posted to specific excluded channels
-- **Compliance Monitoring**: Flag posts containing sensitive information like customer data, financial details, or proprietary information
-- **Topic-Based Moderation**: Flag discussions about specific topics that should be limited to certain channels
-- **Language Standards**: Flag posts containing inappropriate language for professional environments beyond standard harmful content
-- **Custom Security Policies**: Implement organization-specific content policies based on internal guidelines
+- **Confidential Project Protection**: Flag content related to confidential projects unless posted to specific excluded channels.
+- **Compliance Monitoring**: Flag posts containing sensitive information like customer data, financial details, or proprietary information.
+- **Topic-Based Moderation**: Flag discussions about specific topics that should be limited to certain channels.
+- **Language Standards**: Flag posts containing inappropriate language for professional environments beyond standard harmful content.
+- **Custom Security Policies**: Implement organization-specific content policies based on internal guidelines.
 
 **How it works:**
 
-1. Configure the "Agents System Prompt" to define your custom moderation criteria
-2. Use the "Excluded Channels" setting to allow specific discussions in designated channels
-3. Adjust the "Agents Threshold" to control sensitivity (0-6 scale)
-4. The LLM analyzes each message against your custom criteria and assigns a severity score
+1. Configure the **Agents System Prompt** to define your custom moderation criteria.
+2. Use the **Excluded Channels** setting to allow specific discussions in designated channels.
+3. Adjust the **Agents Threshold** to control sensitivity (0-6 scale). See the [Configuration](#configuration) section below for details.
+4. The LLM analyzes each message against your custom criteria and assigns a severity score.
 
 This approach provides organizations with complete control over content moderation policies while leveraging the intelligence of large language models to understand context and nuance.
 
@@ -52,7 +56,7 @@ Configuration options:
 | Setting | Description |
 |---------|-------------|
 | Enabled | Enable/disable content moderation |
-| Type | Moderation provider type ("azure" or "agents") |
+| Type | Moderation provider type (`azure` or `agents`) |
 | Azure Endpoint | Azure API endpoint (Azure backend only) |
 | Azure API Key | Azure API key (kept secure, Azure backend only) |
 | Agents System Prompt | Custom system prompt for LLM moderation (Agents backend only) |
@@ -65,7 +69,7 @@ Configuration options:
 | Azure Threshold | Single severity threshold applied to all content categories (Azure backend only) |
 | Agents Threshold | Single severity threshold applied to all content categories (Agents backend only) |
 
-Both backends use severity levels from 0-6:
+Both Azure and Agents backends use severity levels from 0-6:
 - 0: Safe (always allowed)
 - 2: Low severity (mild)
 - 4: Medium severity (moderate)
@@ -90,15 +94,15 @@ This depends on the notification type:
 
 ### Can I exclude certain users from moderation?
 
-Yes, you can specify user IDs in the "Excluded Users" configuration setting. All other users will have their content moderated automatically.
+Yes, you can specify user IDs in the **Excluded Users** configuration setting. All other users will have their content moderated automatically.
 
 ### Can I exclude certain channels from moderation?
 
 Yes, you have several options for excluding channels from moderation:
 
-1. **Channel Type Exclusions**: Use the "Exclude Direct/Group Messages" option to disable moderation for all direct messages and group messages. Use the "Exclude Private Channels" option to disable moderation for all private channels.
+1. **Channel Type Exclusions**: Use the **Exclude Direct/Group Messages** option to disable moderation for all direct messages and group messages. Use the **Exclude Private Channels** option to disable moderation for all private channels.
 
-2. **Specific Channel Exclusions**: Specify individual channel IDs in the "Excluded Channels" configuration setting. Messages in these specific channels will not be moderated, regardless of the user who posted them.
+2. **Specific Channel Exclusions**: Specify individual channel IDs in the **Excluded Channels** configuration setting. Messages in these specific channels will not be moderated, regardless of the user who posted them.
 
 ### What if content moderation APIs are unavailable?
 
@@ -127,23 +131,23 @@ The plugin implements a dual-processor architecture with asynchronous content an
 │                              MATTERMOST PLUGIN HOOKS                                │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │  MessageWillBePosted/Updated     │  MessageHasBeenPosted/Updated                    │
-│  Intercept messages before       │  Process messages after they                    │
-│  they are posted and queue       │  are posted and queue for                       │
-│  for content analysis            │  moderation actions                             │
+│  Intercept messages before       │  Process messages after they                     │
+│  they are posted and queue       │  are posted and queue for                        │
+│  for content analysis            │  moderation actions                              │
 └─────────────────────────────────────────────────────────────────────────────────────┘
                     │                                    │
                     ▼                                    ▼
 ┌─────────────────────────────────┐    ┌─────────────────────────────────────────────┐
 │        MODERATION PROCESSOR     │    │            POST PROCESSOR                   │
 │                                 │    │                                             │
-│  Analyzes message content       │    │  Applies moderation actions based          │
-│  using Azure AI Content Safety  │    │  on analysis results                       │
+│  Analyzes message content       │    │  Applies moderation actions based           │
+│  using Azure AI Content Safety  │    │  on analysis results                        │
 │                                 │    │                                             │
 │  ┌─────────────────────────────┐│    │  ┌─────────────────────────────────────────┐│
 │  │     Message Queue           ││    │  │          Post Queue                     ││
 │  │                             ││    │  │                                         ││
-│  │  Processes messages with    ││    │  │  Filters excluded users and channels   ││
-│  │  rate limiting to respect   ││    │  │  before taking actions                 ││
+│  │  Processes messages with    ││    │  │  Filters excluded users and channels    ││
+│  │  rate limiting to respect   ││    │  │  before taking actions                  ││
 │  │  API limits                 ││    │  │                                         ││
 │  └─────────────────────────────┘│    │  └─────────────────────────────────────────┘│
 │                                 │    │                                             │
@@ -158,29 +162,29 @@ The plugin implements a dual-processor architecture with asynchronous content an
 │  │  returns severity scores    ││    │  │  ┌─────────────────────────────────────┐││
 │  │                             ││    │  │  │        Action Execution             │││
 │  └─────────────────────────────┘│    │  │  │                                     │││
-│                                 │    │  │  │  Deletes flagged posts and sends   │││
+│                                 │    │  │  │  Deletes flagged posts and sends    │││
 │                                 │    │  │  │  notifications to users             │││
 │                                 │    │  │  └─────────────────────────────────────┘││
 │                                 │    │  └─────────────────────────────────────────┘│
 └─────────────────────────────────┘    └─────────────────────────────────────────────┘
                     │                                             ▲
                     ▼                                             │
-┌─────────────────────────────────────────────────────────────────┴─────────────────┐
-│                          MODERATION RESULTS CACHE                                  │
+┌─────────────────────────────────────────────────────────────────┴───────────────────┐
+│                          MODERATION RESULTS CACHE                                   │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │  Coordinates communication between processors and stores analysis results           │
 │                                                                                     │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
 │  │     PENDING     │  │   PROCESSED     │  │     FLAGGED     │  │     ERROR       │ │
 │  │                 │  │                 │  │                 │  │                 │ │
-│  │ Analysis        │  │ Content is      │  │ Content        │  │ Analysis        │ │
-│  │ in progress     │  │ safe            │  │ violates       │  │ failed          │ │
-│  │                 │  │                 │  │ policies       │  │                 │ │
+│  │ Analysis        │  │ Content is      │  │ Content         │  │ Analysis        │ │
+│  │ in progress     │  │ safe            │  │ violates        │  │ failed          │ │
+│  │                 │  │                 │  │ policies        │  │                 │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 │                                                                                     │
 │  • Prevents duplicate analysis of identical content                                 │
 │  • Provides notification system for processors to coordinate                        │
-│  • Automatically cleans up expired results                                         │
+│  • Automatically cleans up expired results                                          │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
