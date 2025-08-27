@@ -22,11 +22,11 @@ Key features:
 
 ## Agents Plugin Setup
 
-To use the Mattermost Agents Plugin as your moderation backend, install and configure the Mattermost Agents Plugin with an agent that has **Enable Tools** disabled and is accessible to all users. We recommend using Mistral as the LLM model for content moderation tasks.
+To use the Mattermost Agents Plugin as your moderation backend, install and configure the Mattermost Agents Plugin with an agent that has **Enable Tools** disabled and is accessible to all users.
 
 .. note::
 
-  Content moderation is typically a short text classification task. Smaller LLMs are usually sufficient and can run on modest server hardware. In many deployments, a compact model (for example, in the ~7B class, potentially quantized) on a modern CPU-only server or a single small GPU is enough to handle typical Mattermost message volumes while keeping latency and costs low, especially when self-hosted.
+  Content moderation is typically a short text classification task. While a commercial-grade LLM on enterprise hardware is ideal for high-volume deployments, lower-volume installations can often be serviced by smaller LLMs, such as Mistral, (for example, in the ~7B class, potentially quantized) running on relatively inexpensive GPU-equipped hardware. CPU-only deployments are possible but may result in significant delays as moderation "catches up.
 
 ### Flexible Content Moderation with Agents Mode
 
