@@ -26,7 +26,7 @@ To use the Mattermost Agents Plugin as your moderation backend, install and conf
 
 .. note::
 
-  Content moderation is typically a short text classification task. While a commercial-grade LLM on enterprise hardware is ideal for high-volume deployments, lower-volume installations can often be serviced by smaller LLMs, such as Mistral, (for example, in the ~7B class, potentially quantized) running on relatively inexpensive GPU-equipped hardware. CPU-only deployments are possible but may result in significant delays as moderation "catches up.
+  Content moderation is typically a short text classification task. While a commercial-grade LLM on enterprise hardware is ideal for high-volume deployments, lower-volume installations can often be serviced by smaller LLMs, such as Mistral, (for example, in the ~7B class, potentially quantized) running on relatively inexpensive GPU-equipped hardware. CPU-only deployments are possible but may result in significant delays as moderation "catches up".
 
 ### Flexible Content Moderation with Agents Mode
 
