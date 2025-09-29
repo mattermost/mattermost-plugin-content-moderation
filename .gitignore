@@ -13,3 +13,6 @@ server/manifest.go
 .vscode
 
 **/.claude/settings.local.json
+
+# vi/emacs
+*~

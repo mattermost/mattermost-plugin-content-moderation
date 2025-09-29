@@ -278,22 +278,6 @@ const ModeratorConfig: React.FC<ModeratorConfigProps> = ({id, value, onChange}) 
                         <button
                             type='button'
                             onClick={() => handleFieldChange('agents_system_prompt', DEFAULT_AGENTS_SYSTEM_PROMPT)}
-                            style={{
-                                padding: '4px 8px',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '4px',
-                                fontSize: '12px',
-                                backgroundColor: '#f9fafb',
-                                color: '#374151',
-                                cursor: 'pointer',
-                                fontWeight: '500',
-                            }}
-                            onMouseOver={(e) => {
-                                e.currentTarget.style.backgroundColor = '#f3f4f6';
-                            }}
-                            onMouseOut={(e) => {
-                                e.currentTarget.style.backgroundColor = '#f9fafb';
-                            }}
                         >
                             {'Reset to Default'}
                         </button>
